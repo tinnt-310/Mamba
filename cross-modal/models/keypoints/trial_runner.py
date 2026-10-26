@@ -168,6 +168,9 @@ def train(task,campaign):
     model.cuda(); model.set_phase(phase)
     state['active_phase']=phase
     opt = optimizer(model,phase)
+    if 'learning_rate' in task:
+        for group in opt.param_groups:
+            group['lr'] = task['learning_rate']
     if last.exists():
         opt.load_state_dict(payload['optimizer'])
     records = manifest['train']
@@ -189,6 +192,14 @@ def train(task,campaign):
     cpu_process=psutil.Process()
     cpu_process.cpu_percent()
     history = output/'history.jsonl'
+    reference = read(campaign/'trials'/task['selection_reference']/'completed.json')['best'] if task.get('selection_reference') else None
+    if reference is not None and state['best'] is None:
+        initial = evaluate(model,val_data,batch_size,workers)
+        state['best'],state['best_epoch'] = initial,0
+        checkpoint(output/'best.pt',model,opt,manifest,task,0,state)
+        if acceptable(initial,reference):
+            state['best_admissible'] = initial
+            checkpoint(output/'best_admissible.pt',model,opt,manifest,task,0,state)
     telemetry = subprocess.Popen(['nvidia-smi',
                                  '--query-gpu=timestamp,index,utilization.gpu,utilization.memory,memory.used,power.draw',
                                  '--format=csv','-l','5'],stdout=(output/f'gpu-{os.environ["SLURM_JOB_ID"]}.csv').open('w'))
@@ -206,6 +217,10 @@ def train(task,campaign):
                 if index < state['batch_cursor']:
                     continue
                 data_wait += time.perf_counter()-step_start
+                if task.get('cosine_learning_rate'):
+                    fraction = state['updates']/task['max_updates']
+                    rate = task['min_learning_rate']+(task['learning_rate']-task['min_learning_rate'])*(.5+.5*np.cos(np.pi*fraction))
+                    for group in opt.param_groups: group['lr'] = rate
                 batch = transfer(batch)
                 context = torch.autocast('cuda',dtype=torch.bfloat16) if amp else nullcontext()
                 with context:
@@ -268,6 +283,11 @@ def train(task,campaign):
                 if score < previous:
                     state['best'],state['best_epoch'] = result,epoch
                     checkpoint(output/'best.pt',model,opt,manifest,task,epoch,state)
+                if reference is not None and acceptable(result,reference):
+                    admitted = state.get('best_admissible')
+                    if admitted is None or score < (admitted['final']['balanced_mean'],admitted['final']['balanced_p95']):
+                        state['best_admissible'] = result
+                        checkpoint(output/'best_admissible.pt',model,opt,manifest,task,epoch,state)
                 row = dict(epoch=epoch,updates=state['updates'],loss=totals/max(steps,1),validation=result,
                            elapsed_seconds=time.monotonic()-started,data_wait_seconds=data_wait)
                 with history.open('a') as stream:

@@ -131,6 +131,7 @@ def run(task,campaign):
         existing=read(output/'runtime.json') if (output/'runtime.json').exists() else {}
         reference=existing.get('reference') or evaluate(model,data,batch_size=1,workers=4)
         results=existing.get('configurations',[])
+        precision_scores={(r['precision'],r['batch']):r['validation'] for r in results if 'validation' in r}
         started=time.monotonic(); limit=float(os.environ.get('MAMBA_JOB_SECONDS','3600'))-180
         reference_batch=transfer(next(iter(loader(data,8,0))))
         with torch.inference_mode():
@@ -162,7 +163,12 @@ def run(task,campaign):
                         if precision=='bf16':
                             # Candidate AMP is retained only after full validation;
                             # original-coordinate tolerance is conservative.
-                            score=evaluate_precision(model,data,precision,batch,workers)
+                            # Worker count changes I/O, not deterministic sample content.
+                            # Validate each precision/batch once and reuse across loader workers.
+                            key=(precision,batch)
+                            if key not in precision_scores:
+                                precision_scores[key]=evaluate_precision(model,data,precision,batch,workers)
+                            score=precision_scores[key]
                             item['validation']=score
                             item['accepted']=all(score['final'][s]['mean']<=reference['final'][s]['mean']+1e-3 and
                                 score['final'][s]['p95']<=reference['final'][s]['p95']+1e-3 and
