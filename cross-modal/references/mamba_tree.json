@@ -1,0 +1,1051 @@
+{
+  "repo": "state-spaces/mamba",
+  "sha": "e9594ce1c732d97440f0332fdc43170a2294dbfa",
+  "tree": [
+    {
+      "path": ".github",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "2a3934ce4091f99e029e648327a36521ad385133",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/2a3934ce4091f99e029e648327a36521ad385133"
+    },
+    {
+      "path": ".github/scripts",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "8786ea8310dad5ec5c8b634562ea0673a891340e",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/8786ea8310dad5ec5c8b634562ea0673a891340e"
+    },
+    {
+      "path": ".github/scripts/build.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ee99d6ab1b54b69790130c69a6c9d68ac9d8f0c5",
+      "size": 1218,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/ee99d6ab1b54b69790130c69a6c9d68ac9d8f0c5"
+    },
+    {
+      "path": ".github/scripts/check_for_ngc_images.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9e17601f2ea377b577d9573600fa352732ed87d6",
+      "size": 2269,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/9e17601f2ea377b577d9573600fa352732ed87d6"
+    },
+    {
+      "path": ".github/scripts/check_for_releases.sh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "0f7d02759055d19d71ea9724393fa7fd62867b1f",
+      "size": 595,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/0f7d02759055d19d71ea9724393fa7fd62867b1f"
+    },
+    {
+      "path": ".github/scripts/test.sh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "75d5217b753259acba5239dea07a5971b669904a",
+      "size": 114,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/75d5217b753259acba5239dea07a5971b669904a"
+    },
+    {
+      "path": ".github/workflows",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "3c08607f6487b60f187efb0b200f32c0d26653eb",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/3c08607f6487b60f187efb0b200f32c0d26653eb"
+    },
+    {
+      "path": ".github/workflows/_build.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0279f8fee9f724c37ca469c7144b823f20d5c4dc",
+      "size": 6914,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/0279f8fee9f724c37ca469c7144b823f20d5c4dc"
+    },
+    {
+      "path": ".github/workflows/_build_in_container.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "08d172b7871b459ff535d69efca9d8296bb11e97",
+      "size": 5254,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/08d172b7871b459ff535d69efca9d8296bb11e97"
+    },
+    {
+      "path": ".github/workflows/build.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "94760ecf420bd0bac388e8af162fb72617c7a855",
+      "size": 1473,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/94760ecf420bd0bac388e8af162fb72617c7a855"
+    },
+    {
+      "path": ".github/workflows/build_in_container.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "62ba279e7d3a0d71ddfc927519b6d35bd49473b3",
+      "size": 2213,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/62ba279e7d3a0d71ddfc927519b6d35bd49473b3"
+    },
+    {
+      "path": ".github/workflows/build_in_container_scheduled.yml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f29b3a621ebd8d09e3019efa29551b2d8362ad5b",
+      "size": 1641,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/f29b3a621ebd8d09e3019efa29551b2d8362ad5b"
+    },
+    {
+      "path": ".github/workflows/publish.yaml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "04440f407b27dea62e8714a85193ea2b70ec0696",
+      "size": 5228,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/04440f407b27dea62e8714a85193ea2b70ec0696"
+    },
+    {
+      "path": ".gitignore",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "dbde1b1172f14e2afc545c2c0e7d38c4d6074402",
+      "size": 52,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/dbde1b1172f14e2afc545c2c0e7d38c4d6074402"
+    },
+    {
+      "path": ".gitmodules",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7445800fb64f3ae664c0b994a54235105986d2e",
+      "size": 144,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/a7445800fb64f3ae664c0b994a54235105986d2e"
+    },
+    {
+      "path": "AUTHORS",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "38557a872f8d603ed963a05c211de7032de5926b",
+      "size": 53,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/38557a872f8d603ed963a05c211de7032de5926b"
+    },
+    {
+      "path": "LICENSE",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f4abe24eb520fbb077753ae4f34bfaa43cb3b83f",
+      "size": 11348,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/f4abe24eb520fbb077753ae4f34bfaa43cb3b83f"
+    },
+    {
+      "path": "MANIFEST.in",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "318499d570a7e3674a6649ef2310952206aa9e44",
+      "size": 60,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/318499d570a7e3674a6649ef2310952206aa9e44"
+    },
+    {
+      "path": "README.md",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "2aa92d78987f18c325f74c447040cd21d44d5ed3",
+      "size": 14833,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/2aa92d78987f18c325f74c447040cd21d44d5ed3"
+    },
+    {
+      "path": "assets",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "27ca4a77bbe157b46e426c746a9f7f23f45ae1bf",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/27ca4a77bbe157b46e426c746a9f7f23f45ae1bf"
+    },
+    {
+      "path": "assets/mamba3.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "580001b8e25cc6f98aba461e800a93fa7bb2e540",
+      "size": 181058,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/580001b8e25cc6f98aba461e800a93fa7bb2e540"
+    },
+    {
+      "path": "assets/selection.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "69b109a8eed4e3c7516b23e2b39d37e842a4464b",
+      "size": 818624,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/69b109a8eed4e3c7516b23e2b39d37e842a4464b"
+    },
+    {
+      "path": "assets/ssd_algorithm.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c8976a7c02fe06f630645a0d294a9dc3b5b29f48",
+      "size": 1118415,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c8976a7c02fe06f630645a0d294a9dc3b5b29f48"
+    },
+    {
+      "path": "benchmarks",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "512405d70d88af00489877a95fdab42fcc7dc00a",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/512405d70d88af00489877a95fdab42fcc7dc00a"
+    },
+    {
+      "path": "benchmarks/benchmark_generation_mamba_simple.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "f3513b24a3c571cb2e9ecdb2018f0e1abdda24a5",
+      "size": 3302,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/f3513b24a3c571cb2e9ecdb2018f0e1abdda24a5"
+    },
+    {
+      "path": "csrc",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "6e6bfaf2d71e308c74be9fa0aff7973cb6b644a3",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/6e6bfaf2d71e308c74be9fa0aff7973cb6b644a3"
+    },
+    {
+      "path": "csrc/selective_scan",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bbf9579d33ed879ec417f91acc3f5532989ea576",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/bbf9579d33ed879ec417f91acc3f5532989ea576"
+    },
+    {
+      "path": "csrc/selective_scan/reverse_scan.cuh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "61416552307f4d136650447ee70a06467017edba",
+      "size": 20552,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/61416552307f4d136650447ee70a06467017edba"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan.cpp",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a97588e6f0f069e2ceb0b80ff88f8e1ba208b977",
+      "size": 21689,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/a97588e6f0f069e2ceb0b80ff88f8e1ba208b977"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan.h",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "630806a6f09fa2c781a59ee215e55acaca70dd3b",
+      "size": 2234,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/630806a6f09fa2c781a59ee215e55acaca70dd3b"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_bwd_bf16_complex.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c55f0e858af4ebd246a5d251308ab920b4e01a50",
+      "size": 395,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c55f0e858af4ebd246a5d251308ab920b4e01a50"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_bwd_bf16_real.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "72adaf5cb13c6429e2f345a0a823c6bc3722b95a",
+      "size": 391,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/72adaf5cb13c6429e2f345a0a823c6bc3722b95a"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_bwd_fp16_complex.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "df126d7c8d5f9f0862273d2fe21ea15b35757b64",
+      "size": 391,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/df126d7c8d5f9f0862273d2fe21ea15b35757b64"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_bwd_fp16_real.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3ff271b50eaff208ae33c16c87ab7aaee76dfd76",
+      "size": 387,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/3ff271b50eaff208ae33c16c87ab7aaee76dfd76"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_bwd_fp32_complex.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5554902342785b289b81c060a71a51734fc1e6bf",
+      "size": 388,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/5554902342785b289b81c060a71a51734fc1e6bf"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_bwd_fp32_real.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a7ed642231da80c455c0499702cc8a1cb4536ec2",
+      "size": 384,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/a7ed642231da80c455c0499702cc8a1cb4536ec2"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_bwd_kernel.cuh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "c720ba28c0c89937128c3d3517e115a1f4f2fc43",
+      "size": 34955,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c720ba28c0c89937128c3d3517e115a1f4f2fc43"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_common.h",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "91328e913ae816c1dd718fce6adcdfcf5cff8437",
+      "size": 9327,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/91328e913ae816c1dd718fce6adcdfcf5cff8437"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_fwd_bf16.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2b8615b1d522c119125d4cb6ff3dce42f2bd4659",
+      "size": 500,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/2b8615b1d522c119125d4cb6ff3dce42f2bd4659"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_fwd_fp16.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "015e2a0eff633daf2693e43a2648008652a38c7c",
+      "size": 492,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/015e2a0eff633daf2693e43a2648008652a38c7c"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_fwd_fp32.cu",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c142fe0208ea784679122ba04997d3432b05efcc",
+      "size": 486,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c142fe0208ea784679122ba04997d3432b05efcc"
+    },
+    {
+      "path": "csrc/selective_scan/selective_scan_fwd_kernel.cuh",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "c64098a3ad650a23749366d0f984ce073f5a5df8",
+      "size": 20678,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c64098a3ad650a23749366d0f984ce073f5a5df8"
+    },
+    {
+      "path": "csrc/selective_scan/static_switch.h",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7920ac045d0a2a1f4c4159ee3eebe51fe1e2c203",
+      "size": 1278,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/7920ac045d0a2a1f4c4159ee3eebe51fe1e2c203"
+    },
+    {
+      "path": "csrc/selective_scan/uninitialized_copy.cuh",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "cdaf115e34a303bdda35b03a189e50cdbde8150e",
+      "size": 2828,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/cdaf115e34a303bdda35b03a189e50cdbde8150e"
+    },
+    {
+      "path": "evals",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "67e91bef08687e4b6f2577ce4fc638d8a2d253f1",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/67e91bef08687e4b6f2577ce4fc638d8a2d253f1"
+    },
+    {
+      "path": "evals/lm_harness_eval.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d5895af73f112af617b9eb3d753e1e200935c87d",
+      "size": 1287,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/d5895af73f112af617b9eb3d753e1e200935c87d"
+    },
+    {
+      "path": "mamba_ssm",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "bae58ba8db2e8f06737fd22796d1149e41ac8e0e",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/bae58ba8db2e8f06737fd22796d1149e41ac8e0e"
+    },
+    {
+      "path": "mamba_ssm/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "165a01bc53f68e55d092325f0d0ae4ed5a9a8753",
+      "size": 314,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/165a01bc53f68e55d092325f0d0ae4ed5a9a8753"
+    },
+    {
+      "path": "mamba_ssm/distributed",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "0f2bc4ba19fa6867a2abb84f7f0265298fade251",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/0f2bc4ba19fa6867a2abb84f7f0265298fade251"
+    },
+    {
+      "path": "mamba_ssm/distributed/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/distributed/distributed_utils.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "74c55279645cd0fd687584bc1b7374c8c3c73e56",
+      "size": 5825,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/74c55279645cd0fd687584bc1b7374c8c3c73e56"
+    },
+    {
+      "path": "mamba_ssm/distributed/tensor_parallel.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2d67b5304efe87b9309b5321af0e97bcce4907bf",
+      "size": 12008,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/2d67b5304efe87b9309b5321af0e97bcce4907bf"
+    },
+    {
+      "path": "mamba_ssm/models",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "5f6506c3925fc74b1bc73e4b074008c3cc1095fe",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/5f6506c3925fc74b1bc73e4b074008c3cc1095fe"
+    },
+    {
+      "path": "mamba_ssm/models/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/models/config_mamba.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "646c9e1e8ac94b2e82974cc0d5dab83fcfea900c",
+      "size": 489,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/646c9e1e8ac94b2e82974cc0d5dab83fcfea900c"
+    },
+    {
+      "path": "mamba_ssm/models/mixer_seq_simple.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b178f48f99c5914436f33056796000558dd87e8a",
+      "size": 11820,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/b178f48f99c5914436f33056796000558dd87e8a"
+    },
+    {
+      "path": "mamba_ssm/modules",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4d23345b1b5017e312f902f901280b675f8f958e",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/4d23345b1b5017e312f902f901280b675f8f958e"
+    },
+    {
+      "path": "mamba_ssm/modules/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/modules/block.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1bd968a0bf20668bb312f9b7981529cf5c915471",
+      "size": 3729,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/1bd968a0bf20668bb312f9b7981529cf5c915471"
+    },
+    {
+      "path": "mamba_ssm/modules/mamba2.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "36b16d4715ed2d753697167d65da5e6abba22017",
+      "size": 17479,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/36b16d4715ed2d753697167d65da5e6abba22017"
+    },
+    {
+      "path": "mamba_ssm/modules/mamba2_simple.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "77a6af28e9f4630c482aa2c108c74f5d1dad1040",
+      "size": 7608,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/77a6af28e9f4630c482aa2c108c74f5d1dad1040"
+    },
+    {
+      "path": "mamba_ssm/modules/mamba3.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "34c119c2cd9052e82bd80d791afd1508285fa3be",
+      "size": 20953,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/34c119c2cd9052e82bd80d791afd1508285fa3be"
+    },
+    {
+      "path": "mamba_ssm/modules/mamba_simple.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4c8a388217c4cd4d21d5ea4704a5d571be294781",
+      "size": 11710,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/4c8a388217c4cd4d21d5ea4704a5d571be294781"
+    },
+    {
+      "path": "mamba_ssm/modules/mha.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "978f3ea4d8f1c962303b5cb6d8388c2289c4f7db",
+      "size": 13392,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/978f3ea4d8f1c962303b5cb6d8388c2289c4f7db"
+    },
+    {
+      "path": "mamba_ssm/modules/mlp.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "33bab5c7cc21b96d5f5ccfe233e339cad12cfe2c",
+      "size": 1130,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/33bab5c7cc21b96d5f5ccfe233e339cad12cfe2c"
+    },
+    {
+      "path": "mamba_ssm/modules/ssd_minimal.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9632ebd4350fa18ddc977c2bdedb0bab1fd82646",
+      "size": 4144,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/9632ebd4350fa18ddc977c2bdedb0bab1fd82646"
+    },
+    {
+      "path": "mamba_ssm/ops",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "92e3c2d8f1276ffd721918e29b0bfd499265bf4a",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/92e3c2d8f1276ffd721918e29b0bfd499265bf4a"
+    },
+    {
+      "path": "mamba_ssm/ops/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/ops/cute",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "f8a4cf60092cef90fe105a832b800cf8a7664c9d",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/f8a4cf60092cef90fe105a832b800cf8a7664c9d"
+    },
+    {
+      "path": "mamba_ssm/ops/cute/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/ops/cute/mamba3",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "eedf661b08e5508a7ba7b85d0c7521f055241d00",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/eedf661b08e5508a7ba7b85d0c7521f055241d00"
+    },
+    {
+      "path": "mamba_ssm/ops/cute/mamba3/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/ops/cute/mamba3/mamba3_step_fn.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "4a2fb49f607409d326dde92399aa17ef4c72d3e8",
+      "size": 41533,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/4a2fb49f607409d326dde92399aa17ef4c72d3e8"
+    },
+    {
+      "path": "mamba_ssm/ops/selective_scan_interface.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "271b7b15b3e0046cf2dbc93c0df28198c99bd528",
+      "size": 20441,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/271b7b15b3e0046cf2dbc93c0df28198c99bd528"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "67736c0e2ec25838590fb182cdbb28d7a9f129f5",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/67736c0e2ec25838590fb182cdbb28d7a9f129f5"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang/mamba3",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "1e5cea19e87b3b772e6170f0ef9d282ca4104584",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/1e5cea19e87b3b772e6170f0ef9d282ca4104584"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang/mamba3/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang/mamba3/mamba3_mimo.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "aabbda1f4949ea63aaf5496bfa55df87b7024461",
+      "size": 15267,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/aabbda1f4949ea63aaf5496bfa55df87b7024461"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang/mamba3/mamba3_mimo_bwd.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "1b30f75f2fda9507f20fa99024ecc9bc875a6137",
+      "size": 84794,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/1b30f75f2fda9507f20fa99024ecc9bc875a6137"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang/mamba3/mamba3_mimo_bwd_varlen.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c33ccca1d6aad8e7a7fbbb519a0fdb0450ab083a",
+      "size": 92594,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c33ccca1d6aad8e7a7fbbb519a0fdb0450ab083a"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang/mamba3/mamba3_mimo_fwd.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "e1a536767b056969141df1c5f4244d9e21d32acd",
+      "size": 29804,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e1a536767b056969141df1c5f4244d9e21d32acd"
+    },
+    {
+      "path": "mamba_ssm/ops/tilelang/mamba3/mamba3_mimo_fwd_varlen.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "fc286b8a46d2a9a5675a9e5e6dd49b2bb99d3a65",
+      "size": 39225,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/fc286b8a46d2a9a5675a9e5e6dd49b2bb99d3a65"
+    },
+    {
+      "path": "mamba_ssm/ops/triton",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d142b438ef9d8afe2b818127818c6fe037451b26",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/d142b438ef9d8afe2b818127818c6fe037451b26"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/k_activations.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6ac41179b9ffb19714e9d57b590323745758fabe",
+      "size": 5263,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/6ac41179b9ffb19714e9d57b590323745758fabe"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/layer_norm.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "3e61f298da73104717be9b03da24eb3be08a60c4",
+      "size": 36058,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/3e61f298da73104717be9b03da24eb3be08a60c4"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/layernorm_gated.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "de4b2f4815f6fa9d80291491e3826251f50ff5ad",
+      "size": 17763,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/de4b2f4815f6fa9d80291491e3826251f50ff5ad"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "180d3a85519bc68264591d8691b3c5ea09532079",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/180d3a85519bc68264591d8691b3c5ea09532079"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/angle_dt.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5363efaa255b8558cb79ddb685ec9a985584aa34",
+      "size": 17266,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/5363efaa255b8558cb79ddb685ec9a985584aa34"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/grouped_head_reduction.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c91e891dfa4b7bcda87502591cce8eb438854e74",
+      "size": 7220,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c91e891dfa4b7bcda87502591cce8eb438854e74"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/mamba3_mimo_rotary_step.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c6b8596d1db2c230b015a6af693cf431eb806b3d",
+      "size": 16419,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c6b8596d1db2c230b015a6af693cf431eb806b3d"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/mamba3_mimo_utils.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "5de93aea766d3c5f45a2eff0272c3e51a16b265c",
+      "size": 75987,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/5de93aea766d3c5f45a2eff0272c3e51a16b265c"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/mamba3_siso_bwd.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "a8a0c17e6536e63496b57a16fbf6f92e3328ebe4",
+      "size": 84802,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/a8a0c17e6536e63496b57a16fbf6f92e3328ebe4"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/mamba3_siso_combined.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "ca515200117db8e1d8438986aae32ea6e8effb78",
+      "size": 17287,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/ca515200117db8e1d8438986aae32ea6e8effb78"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/mamba3_siso_fwd.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "041db8eb4c24ef83494a48cbc0f108e2ec6ef74e",
+      "size": 36456,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/041db8eb4c24ef83494a48cbc0f108e2ec6ef74e"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/mamba3_siso_step.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "2fbde0a2fd607643df2b72e369a02cde5f58e6a2",
+      "size": 18045,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/2fbde0a2fd607643df2b72e369a02cde5f58e6a2"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/mamba3/utils.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "19676c76b7f2b1d34536810e2568acb3325dd526",
+      "size": 3289,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/19676c76b7f2b1d34536810e2568acb3325dd526"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/selective_state_update.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "be82d1635ffb31cf838d55db28822124cee69665",
+      "size": 11582,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/be82d1635ffb31cf838d55db28822124cee69665"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/softplus.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "5541655c6616032a484c1e567f94a65cd6e4c88b",
+      "size": 328,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/5541655c6616032a484c1e567f94a65cd6e4c88b"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/ssd_bmm.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "20f619f2334fdef4ebf5de6b1d51a5ace102904d",
+      "size": 13731,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/20f619f2334fdef4ebf5de6b1d51a5ace102904d"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/ssd_chunk_scan.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "7279eda98e4324f1587e8a36c5129cb489923b80",
+      "size": 107618,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/7279eda98e4324f1587e8a36c5129cb489923b80"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/ssd_chunk_state.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "04871814ae59ea2ce23893b841ca26bb8df92db3",
+      "size": 61766,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/04871814ae59ea2ce23893b841ca26bb8df92db3"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/ssd_combined.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "af95537b9121288a7c80b33f20d990e20ad9604a",
+      "size": 57617,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/af95537b9121288a7c80b33f20d990e20ad9604a"
+    },
+    {
+      "path": "mamba_ssm/ops/triton/ssd_state_passing.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d6aa53c967d908c917a3cd0407655b104510cd26",
+      "size": 16471,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/d6aa53c967d908c917a3cd0407655b104510cd26"
+    },
+    {
+      "path": "mamba_ssm/utils",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "4d8eb00d1f2a64f77cf88e4b514cf5d61a0d8d64",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/4d8eb00d1f2a64f77cf88e4b514cf5d61a0d8d64"
+    },
+    {
+      "path": "mamba_ssm/utils/__init__.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391",
+      "size": 0,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+    },
+    {
+      "path": "mamba_ssm/utils/determinism.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c6066f80d0ae3c7794855c8403f8db225587861f",
+      "size": 3209,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c6066f80d0ae3c7794855c8403f8db225587861f"
+    },
+    {
+      "path": "mamba_ssm/utils/generation.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e4a7a78bf330f5e30b91615e0108e9ed90a22e0d",
+      "size": 15331,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e4a7a78bf330f5e30b91615e0108e9ed90a22e0d"
+    },
+    {
+      "path": "mamba_ssm/utils/hf.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0d7555acddbd260636d1d14d5bd6324f6af0056a",
+      "size": 966,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/0d7555acddbd260636d1d14d5bd6324f6af0056a"
+    },
+    {
+      "path": "mamba_ssm/utils/torch.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "37df47c8e96cd730b9fbdbe152a55327b09d2f9d",
+      "size": 676,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/37df47c8e96cd730b9fbdbe152a55327b09d2f9d"
+    },
+    {
+      "path": "pyproject.toml",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c27c9d5082b01189a15c775668bbb587b2abb007",
+      "size": 1323,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c27c9d5082b01189a15c775668bbb587b2abb007"
+    },
+    {
+      "path": "rocm_patch",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "531e4f4a79a69d6502aa50f9e75f099875e7f093",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/531e4f4a79a69d6502aa50f9e75f099875e7f093"
+    },
+    {
+      "path": "rocm_patch/rocm6_0.patch",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "e1fa60d42b4e8972e638aac8ec3aacdf49b52946",
+      "size": 2249,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e1fa60d42b4e8972e638aac8ec3aacdf49b52946"
+    },
+    {
+      "path": "setup.py",
+      "mode": "100755",
+      "type": "blob",
+      "sha": "29fc07977f0e276a4e41d34481e489d809050b53",
+      "size": 15069,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/29fc07977f0e276a4e41d34481e489d809050b53"
+    },
+    {
+      "path": "tests",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "28b0855345174cd778cd04fe94c38d8e6456d677",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/28b0855345174cd778cd04fe94c38d8e6456d677"
+    },
+    {
+      "path": "tests/benchmark_determinism_kernels.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "3897018db0c5947a12887512ac65246c6faedcad",
+      "size": 6427,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/3897018db0c5947a12887512ac65246c6faedcad"
+    },
+    {
+      "path": "tests/modules",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "60744c372406fd55c68074a43e5b4399000e1172",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/60744c372406fd55c68074a43e5b4399000e1172"
+    },
+    {
+      "path": "tests/modules/test_mamba3_varlen.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1c64ebd9816ef6a91ae1cd934a8f53b8e6c0536e",
+      "size": 3772,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/1c64ebd9816ef6a91ae1cd934a8f53b8e6c0536e"
+    },
+    {
+      "path": "tests/ops",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "69a55be2917078dcd8e70f80f5d513fa706d4973",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/69a55be2917078dcd8e70f80f5d513fa706d4973"
+    },
+    {
+      "path": "tests/ops/cute",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "7f8f3fa918a09d6a5d4555b5955c852af20873b7",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/7f8f3fa918a09d6a5d4555b5955c852af20873b7"
+    },
+    {
+      "path": "tests/ops/cute/test_mamba3_mimo_step.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "0d40e9dc6a284a504c1fb74969301de754a342a0",
+      "size": 10114,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/0d40e9dc6a284a504c1fb74969301de754a342a0"
+    },
+    {
+      "path": "tests/ops/test_selective_scan.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8a834b3c93267d05f81c3e5156b35622a3c2d956",
+      "size": 13064,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/8a834b3c93267d05f81c3e5156b35622a3c2d956"
+    },
+    {
+      "path": "tests/ops/tilelang",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "d42d5f4724d25e2d5369815208990f9ce3c34a9c",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/d42d5f4724d25e2d5369815208990f9ce3c34a9c"
+    },
+    {
+      "path": "tests/ops/tilelang/test_mamba3_mimo.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "e3cf08794c79c821a0f6c00636b0029fa68ac326",
+      "size": 82157,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/e3cf08794c79c821a0f6c00636b0029fa68ac326"
+    },
+    {
+      "path": "tests/ops/triton",
+      "mode": "040000",
+      "type": "tree",
+      "sha": "9d236c18ef65dba5b91107d8aafbf58884436377",
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/trees/9d236c18ef65dba5b91107d8aafbf58884436377"
+    },
+    {
+      "path": "tests/ops/triton/test_layernorm_gated.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "de669e85b3fed009b5538621e62bf10b6f2cb9e4",
+      "size": 5498,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/de669e85b3fed009b5538621e62bf10b6f2cb9e4"
+    },
+    {
+      "path": "tests/ops/triton/test_mamba3_siso.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "35908b261f0480a1c82d58e395f16f2545e8441f",
+      "size": 42361,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/35908b261f0480a1c82d58e395f16f2545e8441f"
+    },
+    {
+      "path": "tests/ops/triton/test_selective_state_update.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "55408c89c38f7c680dcba562db40c5461b8258a2",
+      "size": 9504,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/55408c89c38f7c680dcba562db40c5461b8258a2"
+    },
+    {
+      "path": "tests/ops/triton/test_ssd.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "d45152d677903c85a73abeb5833a476d40eed602",
+      "size": 3883,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/d45152d677903c85a73abeb5833a476d40eed602"
+    },
+    {
+      "path": "tests/test_determinism.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b516fb8acc5159964cef5e4861c2e595b96c1e33",
+      "size": 12450,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/b516fb8acc5159964cef5e4861c2e595b96c1e33"
+    },
+    {
+      "path": "tests/test_generation.py",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c1b12212885ed61e6be88a95bdaaa0cbc21e5167",
+      "size": 8686,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/c1b12212885ed61e6be88a95bdaaa0cbc21e5167"
+    },
+    {
+      "path": "usage.md",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1b588ce2c53bb6e9a29fb9600ea7cddb0df326b0",
+      "size": 1380,
+      "url": "https://api.github.com/repos/state-spaces/mamba/git/blobs/1b588ce2c53bb6e9a29fb9600ea7cddb0df326b0"
+    }
+  ]
+}
