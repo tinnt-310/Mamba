@@ -20,10 +20,16 @@ def save_checkpoint(path, model, optimizer, *, epoch, phase, keypoint_names,
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        'config_version': (3 if (model.config.get('modality','rgbd') != 'rgbd' or
+        'config_version': (4 if (model.config.get('global_ssm',{}).get('topology','legacy')!='legacy' or
+             model.config.get('decoder',{}).get('kind','legacy')!='legacy' or
+             model.config.get('local',{}).get('core')=='hybrid') else (3 if (model.config.get('modality','rgbd') != 'rgbd' or
              model.config.get('fusion_mode','legacy') != 'legacy' or
              model.config.get('detail_decoder',False) or model.config.get('skip_fusion_scales') or
-             model.config.get('local',{}).get('mode','legacy') != 'legacy') else 2), 'config': model.config,
+             model.config.get('decoder',{}).get('merge','mean') != 'mean' or
+             model.config.get('decoder',{}).get('activation','gelu') != 'gelu' or
+             model.config.get('decoder',{}).get('depth',2) != 2 or
+             model.config.get('decoder',{}).get('residual',False) or
+             model.config.get('local',{}).get('mode','legacy') != 'legacy') else 2)), 'config': model.config,
         'model_state': model.state_dict(),
         'optimizer': optimizer.state_dict() if optimizer is not None else None,
         'epoch': int(epoch), 'phase': phase,
@@ -44,7 +50,7 @@ def load_checkpoint(path, *, model=None, allow_local_missing=False,
     payload = torch.load(path, map_location=map_location, weights_only=False)
     if not isinstance(payload, dict) or 'config' not in payload:
         raise ValueError('checkpoint must contain a model config')
-    if payload.get('config_version', 1) not in (1, 2, 3):
+    if payload.get('config_version', 1) not in (1, 2, 3, 4):
         raise ValueError('unsupported checkpoint config_version')
     payload['_checkpoint_path'] = str(Path(path).resolve())
     from .config import make_config

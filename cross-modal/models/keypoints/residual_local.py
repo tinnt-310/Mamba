@@ -14,16 +14,45 @@ class ResidualOutput:
     gate: torch.Tensor
 
 
+class HybridLocalCore(nn.Module):
+    def __init__(self,channels,state_dim,backend):
+        super().__init__()
+        self.cnn=nn.Sequential(nn.Conv2d(channels,channels,3,padding=1,bias=False),
+            nn.GroupNorm(1,channels),nn.SiLU(),nn.Conv2d(channels,channels,3,padding=1,bias=False),
+            nn.GroupNorm(1,channels),nn.SiLU())
+        self.ssm=FourDirectionLocalMamba(channels,state_dim,backend)
+        self.gate=nn.Conv2d(2*channels,channels,1)
+        nn.init.zeros_(self.gate.weight); nn.init.zeros_(self.gate.bias)
+        self.mask_branch=None
+        self.last_gate=None
+
+    def forward(self,x):
+        cnn,ssm=self.cnn(x),self.ssm(x)
+        if self.mask_branch=='cnn': cnn=cnn*0
+        if self.mask_branch=='ssm': ssm=ssm*0
+        gate=self.gate(torch.cat((cnn,ssm),1)).sigmoid()
+        self.last_gate=gate.detach()
+        return gate*cnn+(1-gate)*ssm
+
+
 class ResidualLocal(nn.Module):
     def __init__(self, in_channels, channels, num_keypoints, *, roi_size=13,
-                 conditioning=False, state_dim=16, backend='torch'):
+                 conditioning=False, state_dim=16, backend='torch', core='ssm'):
         super().__init__()
         self.roi_size, self.num_keypoints = roi_size, num_keypoints
         self.conditioning = conditioning
         self.project = nn.Conv2d(in_channels,channels,1)
         self.embedding = nn.Embedding(num_keypoints,channels)
         self.context = nn.Conv2d(3,channels,1) if conditioning else None
-        self.mamba = FourDirectionLocalMamba(channels,state_dim,backend)
+        if core not in ('ssm','conv','hybrid'):
+            raise ValueError('Unknown local core')
+        # Keep the legacy attribute/state names for strict historical loading.
+        self.mamba = (FourDirectionLocalMamba(channels,state_dim,backend) if core=='ssm' else
+                      nn.Sequential(nn.Conv2d(channels,channels,3,padding=1,bias=False),
+                                    nn.GroupNorm(1,channels),nn.SiLU(),
+                                    nn.Conv2d(channels,channels,3,padding=1,bias=False),
+                                    nn.GroupNorm(1,channels),nn.SiLU()))
+        if core=='hybrid': self.mamba=HybridLocalCore(channels,state_dim,backend)
         self.delta_head = nn.Conv2d(channels,1,1)
         self.gate = nn.Parameter(torch.zeros(num_keypoints))
         nn.init.zeros_(self.delta_head.weight)
@@ -42,10 +71,8 @@ class ResidualLocal(nn.Module):
         valid = (x>=0)&(x<w)&(y>=0)&(y<h)
         grid = torch.stack(((x+.5)*2/w-1,(y+.5)*2/h-1),-1).to(feature.dtype)
         projected = self.project(feature)
-        # Pack K grids along height; sample the full image feature only once.
-        packed = grid.reshape(b,k*size,size,2)
-        crops = F.grid_sample(projected,packed,align_corners=False,padding_mode='zeros')
-        crops = crops.reshape(b,projected.shape[1],k,size,size).permute(0,2,1,3,4).reshape(b*k,projected.shape[1],size,size)
+        expanded = projected[:,None].expand(-1,k,-1,-1,-1).reshape(b*k,*projected.shape[1:])
+        crops = F.grid_sample(expanded,grid,align_corners=False,padding_mode='zeros')
         ids = torch.arange(k,device=feature.device).repeat(b)
         crops = crops+self.embedding(ids)[:,:,None,None]
         if self.context is not None:

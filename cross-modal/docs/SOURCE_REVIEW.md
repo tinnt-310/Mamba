@@ -1,5 +1,48 @@
 # Đối chiếu source trước khi triển khai
 
+## Bổ sung architecture research 26/10/2026
+
+Đợt search RGB-D tái sử dụng CP/self/cross, geometry XYZ+normal+validity và reliability gates đã audit. `ReliabilityGate` legacy đã có channel/spatial weighting nhưng chưa nhận measured-depth validity trực tiếp. Biến thể validity thêm một quality channel, giữ recurrence và output projections; fallback toàn-invalid dùng RGB self với nhánh Depth bằng 0 trước learned fuse. Đây là thiết kế local, không gọi là MS2Fusion nguyên bản.
+
+Decoder hiện tại project/resize/mean rồi hai Conv3x3–GroupNorm(1)–GELU. Các ablation config-driven thay activation, residual, merge; concat projection khởi tạo bằng mean để kiểm tra bảo toàn baseline trước học. Detail skip trước refinement là giả thuyết riêng, không đồng nghĩa HRNet đầy đủ.
+
+[CMX](https://arxiv.org/abs/2203.04838) mô tả cross-modal feature rectification rồi feature fusion; được dùng để đặt giả thuyết compensation, chưa copy implementation hoặc chứng minh hiệu quả CCS2. [Integral regression](https://arxiv.org/abs/1711.08229) hỗ trợ nghiên cứu supervision tọa độ khả vi; cửa sổ argmax local hiện tại phải kiểm tra gradient khi peak sai xa GT. Source VMamba pinned dưới đây vẫn là căn cứ ordering; không thay selective-scan kernel.
+
+Local residual hiện có ID/zero-init/predicted ROI và fused-feature input. Biến thể Conv dùng cùng API/ROI/merge thay core SSM; RGB-detail-only không được gọi là Local RGB-D trực tiếp. Search Local hai nhánh ROI sẽ mở sau khi kiểm chứng control và incremental cost.
+
+Trạng thái này là research/implementation; correctness/profile và accuracy được ghi riêng trong campaign registry, không suy ra hiệu quả từ paper hoặc tên module.
+
+### Architecture audit thực thi và profile đầu tiên
+
+Luồng thực tế: RGB SE-ResNet → bốn scale; depth+K → XYZ/normal/validity → geometry residual encoder → bốn scale cùng stride; mỗi scale chạy self/cross CP readout và reliability compensation; decoder project/resize/merge → Conv refinement → chín heatmap. Local residual crop từ Global argmax, thêm semantic ID, predict delta và scatter trên lưới Global. Không có detector ngoài và không có một SSM thứ ba bắt buộc sau fused decoder.
+
+| Khối | Spatial/normalization | Hướng kiểm chứng |
+|---|---|---|
+| RGB backbone | Pretrained SE-ResNet-50, optional RGB stem stride 2 | Giữ weights/hash; không thay backbone toàn bộ trước profile |
+| Geometry | Input 7 channel metric XYZ, normal, validity; stem 7x7/2 + pool; GroupNorm(1), SiLU residual | Gradient/validity, input lẻ và sampling grid |
+| CP coordinator | Independent modality projection/SSM parameters, shared local depthwise Conv, recipient LayerNorm/projection | C-only exchange, self/cross đúng nghĩa; directions 1/4 |
+| Reliability | Spatial/channel sigmoid từ self/cross/difference | Thêm measured validity là ablation; gate không phải calibrated confidence |
+| Decoder | 4x32 channel, mean mặc định, width 32, 2 Conv3x3/GN(1)/GELU | Concat initialized-mean, activation, residual và detail-before |
+| Local | One predicted ROI, ID, zero-init delta, gate logit 0 | Frozen Global, Conv/SSM cores, support/identity và incremental cost |
+
+GPU profile Slurm 6125, A5000: control 27.290.489 parameters; concat thêm 4.096 parameters; validity gate thêm 256 parameters. Temporary b8 step P50 control 56,31 ms, concat 53,97 ms, SiLU 56,59 ms, residual 56,75 ms, validity 58,52 ms, detail-before 57,47 ms, scan4 67,22 ms. Frozen-Global Local SSM/Conv lần lượt 20,11/18,65 ms. Đây là 25 steps trên một batch, chỉ dùng dự toán; chưa đủ benchmark speedup hoặc convergence.
+
+Inclusive GPU-event component P50 control: RGB encoder khoảng 2,89 ms, decoder 0,60 ms, fusion scale đầu 1,18 ms. Không cộng các timing lồng nhau thành tổng pipeline. Full component/activation-memory/gradient rows nằm trong `runs/improve_20261025/architecture/profile.json`; scan FLOPs chưa được công cụ này đếm nên để null thay vì báo số thiếu toán tử.
+
+Đợt pilot dùng snapshot riêng; các cải tiến diagnostic GT depth/sigma/resume tiếp theo ở working tree không sửa snapshot đang chạy. Synthetic annotation có `keypoints_2d[*].depth_m`; diagnostic mới ưu tiên giá trị đó và gắn provenance, không sửa prediction/mm lịch sử vốn dùng depth sensor tại nhãn.
+
+### Modality diagnostic thực đo trên candidate lịch sử
+
+Slurm GPU 6161 xuất prediction cho subset validation cố định theo UID hash, 256 ảnh mỗi nguồn; CPU 6163 bootstrap 2.000 lượt theo render/parent, không chạy lại model. Candidate pretrained seed 20261025:
+
+| Intervention | OLD Δmean px [CI95] | NEW Δmean px [CI95] |
+|---|---|---|
+| Depth toàn invalid | +0,32462 [0,26906; 0,38085] | +0,21875 [0,17267; 0,27478] |
+| Geometry features bằng 0 | +1,40952 [1,32703; 1,49559] | +0,84790 [0,78549; 0,91697] |
+| RGB features bằng 0 | +13,12385 [10,74017; 16,18580] | +313,32082 [274,26025; 349,41335] |
+
+Delta dương nghĩa clean RGB-D tốt hơn intervention. Các phép feature-zero tạo phân phối nhân tạo, không phải baseline single-modality được train; depth-invalid có liên hệ với dropout training nhưng vẫn là diagnostic. Không gọi đây là chứng minh nhân quả hoặc generalization độc lập. Kết quả chỉ áp dụng candidate lịch sử này; kiến trúc thắng search cần diagnostics riêng trên nhiều seed. Gradient/gates và GT-depth mm có trong `architecture/tasks/modality_F_candidate_20261025/modality.json`; summary CPU tại `architecture/modality_summary.json`.
+
 Snapshot tải ngày 2026-09-14, giữ nguyên tại `references/`. Mỗi `*_tree.json`
 lưu repo, commit SHA và danh sách file. Chỉ đọc các đoạn liên quan bên dưới,
 không khẳng định đã audit toàn bộ repository hoặc chạy detector upstream.
@@ -148,3 +191,49 @@ Backbone `C:/DATA/code/fusion_code/fusion/se_resnet.py` được giữ nguyên.
 Không tạo backbone/decoder/head/full network mới trong workspace trống này.
 Phần nối hai encoder độc lập được minh họa trong README, không thay đổi pipeline
 train/inference của `fusion_code`.
+
+### G–D–L continuation (2026-10-26)
+
+The search uses explicit `global_ssm.topology=g0/g1/g2` and `decoder.kind=d0/d1/d2`;
+legacy defaults and checkpoint parameter paths remain supported. G0 uses the existing
+shared-weight four-direction Cross-C scans and directional self/cross compensation.
+G1 batches valid 8×8 windows at F1/F2 without padded tokens entering SSM recurrences.
+G2 adds an adaptive gated depthwise CNN residual with a zero-initialized output
+projection, preserving the initial SS2D output. These are task-specific extensions.
+
+D1 is an additive lateral/top-down separable-convolution FPN, distinct from the old
+concat decoder. D2 uses both RGB and geometry stride-two stems to refine 90×160
+coarse heatmaps into 180×320 predictions. Local predicted centers use the final Global
+heatmap grid and pixel-center-normalized sampling; coarse integer indices are never
+reused on the fine grid. L2 combines CNN and four-direction SSM features with an
+adaptive gate and zero-initialized residual head. Diagnostics inspect gradients after
+optimizer steps, gate saturation, branch masking, and masked-branch accuracy.
+
+All training, tests, profiling and inference run through Slurm. The user removed
+the previous GPU-hour ceiling; accounting and the four-GPU concurrency limit remain.
+Locked legacy baseline and candidate checkpoints remain comparison references;
+synthetic test and D455 evaluation require the final checkpoint lock.
+
+### Persistent G–D–L automation (2026-10-27)
+
+The Slurm CPU controller persists a successor with `afterany` independently of chat.
+Submission tokens are written before `sbatch` and matched against live queue and
+accounting comments after a crash. Temporary Slurm failures retain the current phase.
+Completed checkpoints receive CPU checks of architecture keys/shapes, config/source/
+manifest hashes, validation metrics, optimizer, scheduler recipe, RNG and sampler.
+Timeout/preemption slices resume from audited checkpoints without reducing the horizon.
+A failed optional candidate is recorded and excluded; a failed mandatory control or
+unresolved correctness check stops with an explicit technical blocker. The canonical
+`architecture_gdl/registry.json` records decisions, winners, paths, verification and jobs.
+Official training remains conditional on freeze and native GPU verification; final
+synthetic test/D455 evaluation remains conditional on the three-checkpoint final lock.
+
+The user raised campaign concurrency to six GPUs on 2026-10-27. The controller
+reads the authorized limit from persistent state and counts pending/running GPU
+devices, including the user's other allocations. Decoder and Local pilots can run
+three variants across both confirmed seeds (six independent one-GPU tasks). Each
+task uses its own seed's verified frozen parent, with the same 15K horizon, 8K
+subset and validation protocol. Every seed must pass the existing comparator
+before a variant is ranked by mean balanced validation error across seeds. Full
+confirmation and the three official seeds remain unchanged. Activation supplements
+an in-flight pilot stage without changing existing task JSON, source or workers.

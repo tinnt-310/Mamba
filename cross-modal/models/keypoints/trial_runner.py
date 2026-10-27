@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import random
 import resource
+import signal
 import subprocess
 import time
 
@@ -128,13 +129,17 @@ def optimizer(model,phase):
 
 
 def checkpoint(path,model,opt,manifest,task,epoch,extra):
+    selected_metric = extra.get('best_admissible') if Path(path).stem=='best_admissible' else extra.get('best')
     save_checkpoint(path,model,opt,epoch=epoch,phase=extra.get('active_phase',task.get('phase','global')),keypoint_names=manifest['keypoint_names'],
                     split_ids={s:[r['uid'] for r in manifest[s]] for s in ('train','val','test')},
-                    metric=extra.get('best'),training=task,
+                    metric=selected_metric,training=task,
                     extra={**extra,'manifest_sha256':extra['manifest_sha256']})
 
 
 def train(task,campaign):
+    stop_requested=[]
+    def request_stop(signum,frame): stop_requested.append(signum)
+    for signum in (signal.SIGTERM,signal.SIGUSR1): signal.signal(signum,request_stop)
     seed = task.get('seed',20261025)
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed); torch.cuda.manual_seed_all(seed)
     torch.set_num_threads(1)
@@ -146,36 +151,90 @@ def train(task,campaign):
     last = output/'last.pt'
     state = dict(epoch=0,batch_cursor=0,updates=0,best=None,best_epoch=0,
                  manifest_sha256=manifest_hash,gradient_diagnostics=[])
+    extended = False
     if last.exists():
         model,payload = load_checkpoint(last,restore_rng=True)
         if payload['training'] != task or payload['extra']['manifest_sha256'] != manifest_hash:
             raise ValueError('Trial/manifest changed during resume')
         state.update(payload['extra'])
         phase=state.get('active_phase',phase)
+    elif task.get('resume_trial'):
+        previous=campaign/'trials'/task['resume_trial']
+        model,payload=load_checkpoint(previous/'last.pt',restore_rng=True)
+        if make_config(model.config)!=config or payload['extra']['manifest_sha256']!=manifest_hash:
+            raise ValueError('Successive-training architecture/manifest mismatch')
+        old=payload['training']
+        defaults=dict(seed=20261025,subset_seed=task.get('seed',20261025),batch=8,
+                      effective_batch=8,train_limit=None,augment=False,precision='fp32',phase='global',
+                      learning_rate=None,coordinate_weight=0.,cosine_learning_rate=False)
+        for key,default in defaults.items():
+            if old.get(key,default)!=task.get(key,default):
+                raise ValueError('Unsafe successive-training change: '+key)
+        if old.get('cosine_learning_rate'):
+            raise ValueError('Changing a cosine horizon requires a separately declared recipe experiment')
+        state.update(payload['extra']); phase=state.get('active_phase',phase); extended=True
+        if old.get('reference_metrics')!=task.get('reference_metrics'):
+            state.pop('best_admissible',None)
+        state['resume_provenance']=dict(trial=task['resume_trial'],checkpoint_sha256=digest(previous/'last.pt'),
+                                        previous_updates=state['updates'])
+        # Preserve selected checkpoints/curve; immutable parent files are never changed.
+        import shutil
+        for name in ('best.pt','best_admissible.pt','history.jsonl'):
+            if (previous/name).exists(): shutil.copy2(previous/name,output/name)
     else:
         model = RGBDKeypointModel(config)
+        if task.get('shared_gdl_initialization'):
+            baseline=make_config(config)
+            baseline['global_ssm']['topology']='g0'
+            baseline['decoder']['kind']='d0'
+            baseline['heatmap_size']=(90,160); baseline['target_sigma']=2.
+            baseline['local']['enabled']=False
+            torch.manual_seed(seed)
+            shared=RGBDKeypointModel(baseline).state_dict()
+            expected=model.state_dict()
+            for key,value in expected.items():
+                source_key=key.replace('.cross_parametric.block.','.cross_parametric.')
+                if source_key in shared and shared[source_key].shape==value.shape:
+                    expected[key]=shared[source_key]
+            model.load_state_dict(expected,strict=True)
+            del shared,expected
         parent = task.get('parent')
         if parent:
-            _,payload = load_checkpoint(campaign/'trials'/parent/'best.pt')
+            parent_path=Path(task.get('parent_checkpoint',campaign/'trials'/parent/'best.pt'))
+            if task.get('parent_checkpoint_sha256') and digest(parent_path)!=task['parent_checkpoint_sha256']:
+                raise ValueError('Parent checkpoint hash changed')
+            _,payload = load_checkpoint(parent_path)
             if payload['extra']['manifest_sha256'] != manifest_hash:
                 raise ValueError('Parent manifest mismatch')
+            parent_config=make_config(payload['config'])
+            if task.get('shared_gdl_initialization'):
+                for key in ('global_ssm','input_size','geometry_channels','fusion_channels','modality','fusion_mode'):
+                    if parent_config[key]!=config[key]:raise ValueError('Incompatible GDL parent '+key)
             incoming = payload['model_state']; expected = model.state_dict()
+            if phase=='decoder':
+                prefixes=('rgb_encoder.','geometry_encoder.','fusion.')
+                incoming={k:v for k,v in incoming.items() if k.startswith(prefixes)}
             missing = set(expected)-set(incoming)
             unexpected = set(incoming)-set(expected)
-            if unexpected or any(not k.startswith('residual_local.') for k in missing):
+            allowed=('decoder.','head.') if phase=='decoder' else ('residual_local.',)
+            if unexpected or any(not k.startswith(allowed) for k in missing):
                 raise ValueError(f'Unsafe global warm-start: missing={missing}, unexpected={unexpected}')
             model.load_state_dict({**expected,**incoming},strict=True)
+            state['parent_checkpoint_sha256']=digest(parent_path)
     model.cuda(); model.set_phase(phase)
     state['active_phase']=phase
     opt = optimizer(model,phase)
     if 'learning_rate' in task:
         for group in opt.param_groups:
-            group['lr'] = task['learning_rate']
-    if last.exists():
+            # Preserve the phase's backbone/head ratio when scheduling.
+            ratio=group['lr']/3e-4
+            group['lr'] = task['learning_rate']*ratio
+            group['initial_lr']=group['lr']
+    if last.exists() or extended:
         opt.load_state_dict(payload['optimizer'])
     records = manifest['train']
     if task.get('train_limit'):
-        rng = random.Random(seed)
+        rng = random.Random(task.get('subset_seed',seed))
         records = sum((rng.sample([r for r in records if r['source']==s],task['train_limit']//2)
                        for s in ('OLD','NEW')),[])
     train_data = MultiSourceDataset(manifest,'train',config,augment=task.get('augment',False) and phase!='local',records=records)
@@ -193,13 +252,34 @@ def train(task,campaign):
     cpu_process.cpu_percent()
     history = output/'history.jsonl'
     reference = read(campaign/'trials'/task['selection_reference']/'completed.json')['best'] if task.get('selection_reference') else None
+    if task.get('reference_metrics'): reference=read(Path(task['reference_metrics']))
+    passes_reference=lambda value:acceptable(value,reference,local=task.get('selection_local',False))
     if reference is not None and state['best'] is None:
         initial = evaluate(model,val_data,batch_size,workers)
         state['best'],state['best_epoch'] = initial,0
         checkpoint(output/'best.pt',model,opt,manifest,task,0,state)
-        if acceptable(initial,reference):
+        if passes_reference(initial):
             state['best_admissible'] = initial
             checkpoint(output/'best_admissible.pt',model,opt,manifest,task,0,state)
+    if state['updates']>=task.get('max_updates',100000):
+        # Recover a timeout between the last optimizer step and the completion marker.
+        result=evaluate(model,val_data,batch_size,workers)
+        candidate=result['final'];score=(candidate['balanced_mean'],candidate['balanced_p95'])
+        old=state.get('best')
+        if old is None or score<(old['final']['balanced_mean'],old['final']['balanced_p95']):
+            state['best']=result;checkpoint(output/'best.pt',model,opt,manifest,task,state['epoch'],state)
+        previous=state.get('best_admissible')
+        if reference is not None and passes_reference(result) and (previous is None or score<(
+                previous['final']['balanced_mean'],previous['final']['balanced_p95'])):
+            state['best_admissible']=result
+            checkpoint(output/'best_admissible.pt',model,opt,manifest,task,state['epoch'],state)
+        with history.open('a') as stream:
+            stream.write(json.dumps(dict(epoch=state['epoch'],updates=state['updates'],validation=result,
+                recovered_completion=True),allow_nan=False)+'\n')
+        checkpoint(last,model,opt,manifest,task,state['epoch'],state)
+        dump(output/'completed.json',dict(status='complete',updates=state['updates'],best=state['best'],
+                                         best_admissible=state.get('best_admissible')))
+        return
     telemetry = subprocess.Popen(['nvidia-smi',
                                  '--query-gpu=timestamp,index,utilization.gpu,utilization.memory,memory.used,power.draw',
                                  '--format=csv','-l','5'],stdout=(output/f'gpu-{os.environ["SLURM_JOB_ID"]}.csv').open('w'))
@@ -219,18 +299,20 @@ def train(task,campaign):
                 data_wait += time.perf_counter()-step_start
                 if task.get('cosine_learning_rate'):
                     fraction = state['updates']/task['max_updates']
-                    rate = task['min_learning_rate']+(task['learning_rate']-task['min_learning_rate'])*(.5+.5*np.cos(np.pi*fraction))
-                    for group in opt.param_groups: group['lr'] = rate
+                    factor=task['min_learning_rate']/task['learning_rate']
+                    factor=factor+(1-factor)*(.5+.5*np.cos(np.pi*fraction))
+                    for group in opt.param_groups:
+                        group['lr']=group['initial_lr']*factor
                 batch = transfer(batch)
                 context = torch.autocast('cuda',dtype=torch.bfloat16) if amp else nullcontext()
                 with context:
                     stage = model.forward_stages(*(batch[k] for k in ('rgb','depth','K')))
                     output_maps = final_maps(stage)
                     heat_loss = weighted_heatmap_loss(output_maps.float(),batch['target'],batch['weights'])
-                    weight = task.get('coordinate_weight',0.)
-                    loss = heat_loss
-                    if weight:
-                        loss = loss+weight*coordinate_loss(output_maps,batch['points'],config['input_size'],batch['weights'])
+                    # Retain the validated training graph: the zero-weight shortcut
+                    # measured only 1.16% and did not establish GPU weight parity.
+                    coord = coordinate_loss(output_maps,batch['points'],config['input_size'],batch['weights'])
+                    loss = heat_loss+task.get('coordinate_weight',0.)*coord
                 if not torch.isfinite(loss):
                     raise RuntimeError('Nonfinite training loss')
                 if phase=='joint' and len(state['gradient_diagnostics'])<8:
@@ -248,6 +330,17 @@ def train(task,campaign):
                 totals += float(loss.detach()); steps += 1
                 if (index+1)%accumulation and index+1<len(batches):
                     step_start = time.perf_counter(); continue
+                if task.get('shared_gdl_initialization') and (state['updates'] in (0,1,2,9,99) or (state['updates']+1)%1000==0):
+                    diagnostics={}
+                    for name,module in model.named_modules():
+                        if not name.endswith(('mamba.cnn','mamba.ssm','mamba.gate','cnn_output','rgb_detail','depth_detail')):
+                            continue
+                        grads=[p.grad.detach().float() for p in module.parameters() if p.grad is not None]
+                        diagnostics[name]=float(sum(g.square().sum() for g in grads).sqrt()) if grads else 0.
+                    gate=getattr(getattr(model.residual_local,'mamba',None),'last_gate',None)
+                    gates=None if gate is None else dict(mean=float(gate.mean()),
+                        fraction_below_005=float((gate<.05).float().mean()),fraction_above_095=float((gate>.95).float().mean()))
+                    state.setdefault('branch_diagnostics',[]).append(dict(update=state['updates']+1,gradient_norms=diagnostics,gate=gates))
                 torch.nn.utils.clip_grad_norm_([p for p in model.parameters() if p.requires_grad],5.,error_if_nonfinite=True)
                 opt.step(); opt.zero_grad(set_to_none=True)
                 state['updates'] += 1; state['batch_cursor'] = index+1
@@ -270,11 +363,20 @@ def train(task,campaign):
                          cpu_percent_parent=cpu_process.cpu_percent(),
                          cpu_seconds_live_workers=sum(sum(p.cpu_times()[:2]) for p in children if p.is_running()),
                          rss_live_workers=sum(p.memory_info().rss for p in children if p.is_running())))
-                if time.monotonic()>=stop_at or state['updates']>=task.get('max_updates',100000):
+                interval=task.get('validation_interval')
+                if interval and state['updates']%interval==0:
+                    break
+                if stop_requested or time.monotonic()>=stop_at or state['updates']>=task.get('max_updates',100000):
                     break
                 step_start = time.perf_counter()
             end_epoch = state['batch_cursor'] >= len(batches)
-            should_validate = end_epoch or time.monotonic()>=stop_at or state['updates']>=task.get('max_updates',100000)
+            interval=task.get('validation_interval')
+            should_validate = ((state['updates']%interval==0) if interval else end_epoch) or time.monotonic()>=stop_at or state['updates']>=task.get('max_updates',100000)
+            if stop_requested:
+                checkpoint(last,model,opt,manifest,task,state['epoch'],state)
+                dump(output/'slice_complete.json',dict(status='resume_required',updates=state['updates'],
+                    reason='checkpointed_signal',signals=stop_requested))
+                return
             if should_validate:
                 result = evaluate(model,val_data,batch_size,workers)
                 candidate = result['final']
@@ -283,7 +385,7 @@ def train(task,campaign):
                 if score < previous:
                     state['best'],state['best_epoch'] = result,epoch
                     checkpoint(output/'best.pt',model,opt,manifest,task,epoch,state)
-                if reference is not None and acceptable(result,reference):
+                if reference is not None and passes_reference(result):
                     admitted = state.get('best_admissible')
                     if admitted is None or score < (admitted['final']['balanced_mean'],admitted['final']['balanced_p95']):
                         state['best_admissible'] = result
@@ -297,10 +399,12 @@ def train(task,campaign):
                 state['epoch'] += 1; state['batch_cursor'] = 0
             checkpoint(last,model,opt,manifest,task,state['epoch'],state)
             if state['updates']>=task.get('max_updates',100000):
-                dump(output/'completed.json',dict(status='complete',updates=state['updates'],best=state['best']))
+                dump(output/'completed.json',dict(status='complete',updates=state['updates'],best=state['best'],
+                                                  best_admissible=state.get('best_admissible')))
                 return
-            if state['best'] and state['epoch']-state['best_epoch']>=20:
-                dump(output/'completed.json',dict(status='early_stopped',updates=state['updates'],best=state['best']))
+            if task.get('early_stopping',True) and state['best'] and state['epoch']-state['best_epoch']>=20:
+                dump(output/'completed.json',dict(status='early_stopped',updates=state['updates'],best=state['best'],
+                                                  best_admissible=state.get('best_admissible')))
                 return
             if time.monotonic()>=stop_at:
                 dump(output/'slice_complete.json',dict(status='resume_required',updates=state['updates'],best=state['best']))

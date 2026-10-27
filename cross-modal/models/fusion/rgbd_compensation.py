@@ -1,6 +1,7 @@
 """Feature-only fusion; no backbone, decoder or additional Mamba fusion stage."""
 import torch
 from torch import nn
+from torch.nn import functional as F
 from .ms2fusion import CrossParametricSSM
 from .reliability import ResidualCompensation
 
@@ -18,7 +19,8 @@ class ChannelNorm(nn.Module):
 class RGBDCompensation(nn.Module):
     def __init__(self, rgb_channels: int, depth_channels: int, channels: int,
                  out_channels: int | None = None, *, state_dim: int = 16,
-                 expand: int = 2, directions: int = 1, backend: str = "torch"):
+                 expand: int = 2, directions: int = 1, backend: str = "torch",
+                 validity_aware: bool = False):
         super().__init__()
         out_channels = channels if out_channels is None else out_channels
         if min(rgb_channels, depth_channels, channels, out_channels) <= 0:
@@ -28,6 +30,11 @@ class RGBDCompensation(nn.Module):
         self.depth_project = nn.Conv2d(depth_channels, channels, 1) if depth_channels != channels else nn.Identity()
         self.cross_parametric = CrossParametricSSM(channels, state_dim, expand, directions, backend)
         self.compensation = ResidualCompensation(channels)
+        self.validity_aware=validity_aware
+        if validity_aware:
+            from .reliability.reliability_gate import ReliabilityGate
+            self.compensation.d2r=ReliabilityGate(channels,quality_channels=1)
+            self.compensation.r2d=ReliabilityGate(channels,quality_channels=1)
         self.fuse = nn.Sequential(nn.Conv2d(2 * channels, out_channels, 1, bias=False),
                                   ChannelNorm(out_channels), nn.GELU())
 
@@ -36,7 +43,7 @@ class RGBDCompensation(nn.Module):
         """Compatibility accessor for the image-level self/cross coordinator."""
         return self.cross_parametric
 
-    def forward(self, rgb: torch.Tensor, depth: torch.Tensor):
+    def forward(self, rgb: torch.Tensor, depth: torch.Tensor, validity=None):
         if rgb.ndim != 4 or depth.ndim != 4 or min(rgb.shape) <= 0 or min(depth.shape) <= 0:
             raise ValueError("Expected nonempty [B,C,H,W] inputs")
         if rgb.shape[0] != depth.shape[0] or rgb.shape[2:] != depth.shape[2:]:
@@ -46,9 +53,20 @@ class RGBDCompensation(nn.Module):
         if rgb.device != depth.device or rgb.dtype != depth.dtype or not rgb.is_floating_point():
             raise ValueError("Inputs require matching devices and floating-point dtypes")
         aux = self.cross_parametric(self.rgb_project(rgb), self.depth_project(depth))
-        r, d, gd, gr = self.compensation(aux)
+        quality=None
+        if self.validity_aware:
+            if validity is None:
+                raise ValueError('Validity-aware fusion requires measured depth validity')
+            quality=F.interpolate(validity.to(rgb.dtype),size=rgb.shape[-2:],mode='area')
+        r, d, gd, gr = self.compensation(aux,quality=quality)
         aux.update(rgb_compensated=r, depth_compensated=d, gate_d2r=gd, gate_r2d=gr)
-        return self.fuse(torch.cat((r, d), dim=1)), aux
+        fused=self.fuse(torch.cat((r,d),dim=1))
+        if self.validity_aware:
+            present=validity.flatten(1).any(1)[:,None,None,None]
+            # Measured-depth absence falls back to the learned RGB self pathway.
+            rgb_only=self.fuse(torch.cat((aux['rgb_self'],torch.zeros_like(d)),dim=1))
+            fused=torch.where(present,fused,rgb_only)
+        return fused, aux
 
 
 class MultiScaleRGBDCompensation(nn.Module):

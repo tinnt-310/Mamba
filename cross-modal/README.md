@@ -458,6 +458,10 @@ CLI có các lệnh `prepare`, `train`, `evaluate`, `infer`, `visualize`, `bench
 
 Đường chạy legacy ở trên được giữ để tái lập checkpoint. Campaign mới dùng `models.keypoints.multisource`, `campaign`, `trial_runner` và `trial_validation`: manifest nhiều nguồn 50K, Local residual có semantic ID, optional RGB stem detail, RGB-only/quality fusion và staged `final_heatmaps`. `forward()` tiếp tục trả global; checkpoint kiến trúc mới dùng version 3.
 
+Đợt tiếp nối 26/10 dùng lại pipeline này. Đường đọc inference được kiểm chứng là `MultiSourceDataset(manifest, split, config, inference_only=True)` cùng `trial_runner.loader(..., batch=1, workers=2)`; nó giữ preprocessing RGB/depth/K và không đọc annotation hoặc tạo target. Dùng staged `final_heatmaps` khi giải mã. Mọi CUDA call phải nằm trong allocation GPU Slurm. Reader thường vẫn là mặc định cho training/evaluation, và checkpoint/model mặc định chưa đổi vì chưa đủ gate.
+
+Kết quả, cấu hình runtime được giữ/bị loại, paired bootstrap và ledger nằm trong `runs/improve_20261025/REPORT.md`, `status.json` và `continuation/`. Runtime recommendation chỉ áp dụng file pipeline có prefetch; benchmark không bao gồm alignment D455/live acquisition/cold startup. Candidate và artifact lịch sử được giữ nguyên để rollback.
+
 Artifact campaign nằm trong `runs/improve_20261025/`. Đọc `IMPLEMENTATION.md`, `INFRASTRUCTURE_FIX.md`, `status.json` và `state.json` để xem snapshot, job và ngân sách. GPU worker chỉ dùng snapshot đóng băng trong `source/`; thay đổi code đang phát triển không tự đi vào các run đang chạy.
 
 Mọi workload phải qua Slurm theo `/home/tinnt/slurm.md`. Controller giữ tối đa bốn GPU và 288 GPU-giờ, tính cả allocation lỗi. Không chạy nhiều controller cho cùng thư mục; file lock sẽ từ chối controller thứ hai. D455 chỉ được đánh giá sau `final_lock.json`; không dùng để train/chọn phương án. `REPORT.md` và `release.json` trong campaign được xuất sau evaluation, bao gồm cả trường hợp chưa đạt tiêu chí cải thiện.

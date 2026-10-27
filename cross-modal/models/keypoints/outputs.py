@@ -108,6 +108,15 @@ def save_prediction_artifact(path, sample, stage, config, keypoint_names):
             key = f"patch_{patch_index:04d}_heatmap"
             arrays[key] = _numpy(patch.prediction)
             patches.append({"batch_index": 0, "keypoint_index": int(patch.keypoint_index), "box": _box(patch.box), "array_key": key})
+    final=getattr(stage,'final_heatmaps',None)
+    if final is None: final=local.heatmaps if local is not None else maps
+    support=local.support if local is not None else None
+    arrays['final_heatmaps']=_numpy(final)[0]
+    coordinates['final']=_coordinate_artifacts(final,support,'final',input_hw,original_hw,arrays)
+    coarse=getattr(stage,'coarse_heatmaps',None)
+    if coarse is not None:
+        arrays['coarse_heatmaps']=_numpy(coarse)[0]
+        coordinates['coarse']=_coordinate_artifacts(coarse,None,'coarse',input_hw,original_hw,arrays)
     metadata = {"artifact_version": 1, "frame_id": sample["frame_id"], "keypoint_names": list(keypoint_names),
                 "config": config, "input_size": input_hw, "original_size": original_hw,
                 "global_size": tuple(maps.shape[-2:]), "feature_size": feature_hw,

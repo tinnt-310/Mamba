@@ -80,32 +80,40 @@ def load_manifest(path):
 
 
 class MultiSourceDataset(Dataset):
-    def __init__(self, manifest, split, config, *, augment=False, records=None, diagnostics=False):
+    def __init__(self, manifest, split, config, *, augment=False, records=None, diagnostics=False, inference_only=False):
         self.records = list(manifest[split] if records is None else records)
         self.keypoint_names = manifest['keypoint_names']
         self.input_size, self.heatmap_size = tuple(config['input_size']), tuple(config['heatmap_size'])
+        self.target_sigma = config.get('target_sigma',2.)
         self.augment = bool(augment)
         self.epoch = 0
         self.seed = int(manifest.get('seed', 20261025))
         self.diagnostics = diagnostics
+        self.inference_only = inference_only
+        if inference_only and (augment or diagnostics):
+            raise ValueError('Inference reader cannot augment or consume label diagnostics')
 
     def __len__(self):
         return len(self.records)
 
     def __getitem__(self, index):
         record = self.records[index]
-        annotation = read(record['annotation'])
+        annotation = None if self.inference_only else read(record['annotation'])
         root = Path(record['root'])
         frame = record['frame_id']
         expected = {'rgb':f'rgb/{frame}.png', 'depth_sensor':f'depth_sensor/{frame}.npy',
                     'poses':f'poses/{frame}.json'}
-        if annotation.get('frame_id') != frame or any(annotation['paths'].get(k) != v for k,v in expected.items()):
+        if annotation is not None and (annotation.get('frame_id') != frame or any(annotation['paths'].get(k) != v for k,v in expected.items())):
             raise ValueError('Paired annotation paths/frame ID changed')
         with Image.open(root/expected['rgb']) as handle:
             image = handle.convert('RGB')
         depth = np.load(root/expected['depth_sensor'], allow_pickle=False)
         K = torch.tensor(read(root/expected['poses'])['K'], dtype=torch.float32)
         original_hw = (image.height, image.width)
+        if self.inference_only:
+            rgb,depth_tensor,K=preprocess_rgbd(image,depth,K,self.input_size)
+            return dict(frame_id=record['uid'],source=record['source'],rgb=rgb,depth=depth_tensor,
+                        K=K,original_size=torch.tensor(original_hw))
         labels = {p['name']:p for p in annotation['keypoints_2d']}
         if len(labels) != len(annotation['keypoints_2d']) or set(labels) != set(NAMES):
             raise ValueError('Semantic labels missing/duplicated')
@@ -118,10 +126,18 @@ class MultiSourceDataset(Dataset):
                 x,y = round(u),round(v)
                 z = float(depth[y,x]) if 0<=x<image.width and 0<=y<image.height else 0.
                 depths.append(z if np.isfinite(z) and z>0 else 0.)
+            depth_kinds=[]
+            for i,name in enumerate(NAMES):
+                if 'depth_m' in labels[name]:
+                    z=float(labels[name]['depth_m'])
+                    depths[i]=z if np.isfinite(z) and z>0 else 0.
+                    depth_kinds.append('synthetic_keypoint_GT')
+                else:
+                    depth_kinds.append('sensor_at_label')
             diagnostic = dict(group=record['group'],bbox=annotation['object_bbox_xyxy'],
                               visibility=[labels[n]['visibility'] for n in NAMES],
                               depth_fraction=float((np.isfinite(depth)&(depth>0)).mean()),
-                              gt_depth=depths,fx=float(K[0,0]),fy=float(K[1,1]),
+                              gt_depth=depths,depth_reference=depth_kinds,fx=float(K[0,0]),fy=float(K[1,1]),
                               gt=points.tolist())
         weights = torch.tensor([float(labels[name]['visibility'] in (1,2)) for name in NAMES])
         weights *= (torch.isfinite(points).all(-1) & (points[:,0]>=-.5) &
@@ -154,7 +170,7 @@ class MultiSourceDataset(Dataset):
         box = annotation['object_bbox_xyxy']
         diagonal = float(np.linalg.norm(np.asarray(box[2:])-np.asarray(box[:2])))
         result = dict(frame_id=record['uid'], source=record['source'], rgb=rgb, depth=depth_tensor,
-                    K=K, points=transformed, target=gaussian_heatmaps(target_points,self.heatmap_size,2,weights),
+                    K=K, points=transformed, target=gaussian_heatmaps(target_points,self.heatmap_size,self.target_sigma,weights),
                     weights=weights, original_points=original_points, original_size=torch.tensor(original_hw),
                     original_scale=scale, bbox_diagonal=torch.tensor(diagonal),
                     cache_key=f'{record["uid"]}:{self.input_size}:{self.epoch if self.augment else "fixed"}')

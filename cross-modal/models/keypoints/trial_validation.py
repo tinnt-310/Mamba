@@ -24,6 +24,20 @@ def stats(durations,images):
                 reserved_bytes=torch.cuda.max_memory_reserved())
 
 
+def choose_batch_one_runtime(results):
+    """Prefer fewer workers within measurement spread; require a robust 5% gain."""
+    candidates=[r for r in results if r.get('accepted') and r.get('batch')==1 and 'file_to_coordinates' in r]
+    baseline=next((r for r in candidates if r['precision']=='fp32' and r['workers']==0),None)
+    if baseline is None or not candidates: return None
+    speed=lambda r:float(np.median([x['images_per_second'] for x in r['file_to_coordinates']]))
+    maximum=max(map(speed,candidates))
+    comparable=[r for r in candidates if speed(r)>=.95*maximum]
+    chosen=min(comparable,key=lambda r:(r['workers'],r['precision']!='fp32'))
+    if min(x['images_per_second'] for x in chosen['file_to_coordinates']) < 1.05*max(x['images_per_second'] for x in baseline['file_to_coordinates']):
+        return None
+    return chosen
+
+
 @torch.no_grad()
 def benchmark(model,data,batch_size,workers,precision='fp32',samples=500):
     model.eval(); amp=precision=='bf16'
@@ -185,8 +199,8 @@ def run(task,campaign):
                     dump(output/'runtime.json',dict(reference=reference,configurations=results,
                          gpu=torch.cuda.get_device_name(),cpu_rss_kib=resource.getrusage(resource.RUSAGE_SELF).ru_maxrss))
         accepted=[r for r in results if r.get('accepted')]
-        if accepted:
-            best=max(accepted,key=lambda r:np.median([x['images_per_second'] for x in r['file_to_coordinates']]))
+        best=choose_batch_one_runtime(accepted)
+        if best:
             dump(output/'recommended_runtime.json',best)
         expected={(p,b,w) for p in ('fp32','bf16') for b in (1,2,4,8) for w in (0,2,4,8)}
         done={(r['precision'],r['batch'],r['workers']) for r in results}

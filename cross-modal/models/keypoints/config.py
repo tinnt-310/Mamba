@@ -9,10 +9,13 @@ import math
 DEFAULT_CONFIG = {
     "input_size": (180, 320),
     "heatmap_size": (90, 160),
+    "target_sigma": 2.,
     "out_indices": (1, 2, 3, 4),
     "geometry_channels": (32, 48, 96, 128, 192),
     "fusion_channels": (32, 32, 32, 32),
     "decoder_width": 32,
+    "decoder": {"kind": "legacy", "merge": "mean", "activation": "gelu", "depth": 2,
+                "residual": False, "detail_position": "after"},
     "num_keypoints": 9,
     "pretrained": False,
     "pretrained_path": None,
@@ -20,7 +23,8 @@ DEFAULT_CONFIG = {
     "fusion_mode": "legacy",
     "skip_fusion_scales": (),
     "detail_decoder": False,
-    "global_ssm": {"state_dim": 4, "expand": 1, "directions": 1, "backend": "torch"},
+    "global_ssm": {"state_dim": 4, "expand": 1, "directions": 1, "backend": "torch",
+                   "topology": "legacy", "window_size": 8},
     "local": {
         "enabled": True, "level": .30, "margin_ratio": .25,
         "layout": "five", "overlap_ratio": .50, "state_dim": 16,
@@ -28,6 +32,7 @@ DEFAULT_CONFIG = {
         "microbatch_size": 8,
         "mode": "legacy", "feature_source": "f1", "roi_size": 13,
         "conditioning": False,
+        "core": "ssm",
     },
 }
 
@@ -69,6 +74,8 @@ def make_config(overrides=None):
             raise ValueError(f"{key} must have height and width")
         for value in config[key]:
             _positive_int(value, key)
+    if isinstance(config['target_sigma'],bool) or not isinstance(config['target_sigma'],(int,float)) or not math.isfinite(config['target_sigma']) or config['target_sigma']<=0:
+        raise ValueError('target_sigma must be finite and positive in heatmap pixels')
     indices = config["out_indices"]
     if (not indices or any(isinstance(i, bool) or not isinstance(i, int) or
                            i not in range(5) for i in indices) or
@@ -90,14 +97,31 @@ def make_config(overrides=None):
         raise ValueError("pretrained must be boolean")
     if config['pretrained_path'] is not None and not isinstance(config['pretrained_path'], str):
         raise ValueError('pretrained_path must be a local checkpoint path or None')
-    if config['modality'] not in ('rgbd', 'rgb') or config['fusion_mode'] not in ('legacy','quality'):
+    if config['modality'] not in ('rgbd', 'rgb') or config['fusion_mode'] not in ('legacy','quality','validity'):
         raise ValueError('Unsupported modality/fusion mode')
     config['skip_fusion_scales'] = tuple(config['skip_fusion_scales'])
     if any(isinstance(i,bool) or not isinstance(i,int) or not 0 <= i < len(indices) for i in config['skip_fusion_scales']):
         raise ValueError('skip_fusion_scales indexes selected fusion scales')
     if not isinstance(config['detail_decoder'],bool):
         raise ValueError('detail_decoder must be boolean')
+    decoder = config['decoder']
+    if decoder['kind'] not in ('legacy','d0','d1','d2'):
+        raise ValueError('Unknown decoder kind')
+    if decoder['kind']=='d2' and config['heatmap_size']!=config['input_size']:
+        raise ValueError('D2 fine heatmaps must use the input image grid')
+    if decoder['merge'] not in ('mean','concat') or decoder['activation'] not in ('gelu','silu','relu'):
+        raise ValueError('Unsupported decoder merge/activation')
+    if isinstance(decoder['depth'],bool) or decoder['depth'] not in (2,3,4):
+        raise ValueError('Decoder depth must be 2, 3 or 4')
+    if not isinstance(decoder['residual'],bool) or decoder['detail_position'] not in ('before','after'):
+        raise ValueError('Unsupported decoder residual/detail position')
     global_ssm = config["global_ssm"]
+    if global_ssm['topology'] not in ('legacy','g0','g1','g2'):
+        raise ValueError('Unknown Global topology')
+    _positive_int(global_ssm['window_size'],'global_ssm.window_size')
+    if global_ssm['topology']!='legacy' and (global_ssm['directions']!=4 or config['modality']!='rgbd'
+            or config['fusion_mode']!='legacy' or config['skip_fusion_scales']):
+        raise ValueError('GDL requires four-direction learned RGB-D compensation at every scale')
     for key in ("state_dim", "expand"):
         _positive_int(global_ssm[key], f"global_ssm.{key}")
     if global_ssm["directions"] not in (1, 4):
@@ -105,6 +129,8 @@ def make_config(overrides=None):
     if global_ssm["backend"] not in ("torch", "mamba"):
         raise ValueError("global_ssm.backend must be torch or mamba")
     local = config["local"]
+    if local['core'] not in ('ssm','conv','hybrid') or (local['core']!='ssm' and local['mode']!='residual'):
+        raise ValueError('Conv Local requires residual mode')
     if local['mode'] not in ('legacy','residual') or local['feature_source'] not in ('f1','detail'):
         raise ValueError('Unsupported local mode/feature source')
     _positive_int(local['roi_size'],'local.roi_size')

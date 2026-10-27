@@ -7,9 +7,10 @@ import statistics
 def read(path): return json.loads(Path(path).read_text())
 
 
-def report(root,reservations):
+def report(root,reservations,task_errors=None):
     from .campaign_budget import Budget
     state=read(root/'state.json')
+    if task_errors is None: task_errors=state.get('unsuccessful_trials',[])
     rows=[]
     for seed in (20261025,20261026,20261027):
         for label in ('baseline','candidate'):
@@ -23,9 +24,9 @@ def report(root,reservations):
                              end_to_end_ms=statistics.median(x['batch_p50_ms'] for x in benchmark['file_to_coordinates']),
                              vram=max(x['allocated_bytes'] for x in benchmark['gpu_ready']),
                              gpu=metrics['gpu'],checkpoint=metrics['checkpoint']))
-    valid=len(rows)==6
-    reasons=[]
-    if not valid: reasons.append('Thiếu kết quả kiểm chứng cho đủ hai cấu hình × ba seed.')
+    valid=len(rows)==6 and not task_errors
+    reasons=[f'Task chưa thành công: {name}.' for name in task_errors]
+    if len(rows)!=6: reasons.append('Thiếu kết quả kiểm chứng cho đủ hai cấu hình × ba seed.')
     if valid:
         for seed in (20261025,20261026,20261027):
             baseline=next(r for r in rows if r['label']=='baseline' and r['seed']==seed)

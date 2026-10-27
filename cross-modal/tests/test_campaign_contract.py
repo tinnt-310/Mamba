@@ -28,3 +28,18 @@ def test_selection_requires_per_source_pck_p95_and_local_five_percent():
     assert not acceptable(score(9,21),score())
     assert not acceptable(score(9,19,.79),score())
     assert not acceptable(None,score())
+
+
+def test_terminal_failure_is_not_successful_parent(tmp_path):
+    import json
+    from models.keypoints.campaign import finished,succeeded
+    from models.keypoints.campaign_budget import Budget,Reservation
+    task={'id':'parent','hours':1}
+    budget=Budget([Reservation('parent','pilot',3600,job_id='job',state='FAILED',elapsed=2)])
+    assert finished(tmp_path,task,budget)
+    assert not succeeded(tmp_path,task,budget)
+    folder=tmp_path/'trials/parent'; folder.mkdir(parents=True)
+    (folder/'completed.json').write_text(json.dumps({'status':'complete'}))
+    assert not succeeded(tmp_path,task,budget)
+    budget.records[0].state='COMPLETED'
+    assert succeeded(tmp_path,task,budget)

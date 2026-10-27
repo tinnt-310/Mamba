@@ -16,8 +16,8 @@ class ResidualCompensation(nn.Module):
         self.d2r = ReliabilityGate(channels)
         self.r2d = ReliabilityGate(channels)
 
-    def forward(self, features):
+    def forward(self, features, quality=None):
         rs, rc = features["rgb_self"], features["rgb_cross"]
         ds, dc = features["depth_self"], features["depth_cross"]
-        gd, gr = self.d2r(rs, rc), self.r2d(ds, dc)
+        gd, gr = self.d2r(rs, rc,quality), self.r2d(ds, dc,quality)
         return compensate(rs, rc, gd), compensate(ds, dc, gr), gd, gr

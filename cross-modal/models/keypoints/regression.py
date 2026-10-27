@@ -7,6 +7,38 @@ from .multisource import read, dump, NAMES
 from .acceptance import acceptable
 
 
+def geometry_metrics(rows):
+    """Lateral camera error at labeled Z; missing predictions remain failures."""
+    if not rows: return dict(points=0,images=0,mean=None,median=None,p95=None)
+    gt=np.asarray([r['gt'] for r in rows],float)
+    prediction=np.asarray([r['coords'] for r in rows],float)
+    z=np.asarray([r['gt_depth'] for r in rows],float)
+    labeled=np.asarray([r['valid'] for r in rows],bool)
+    focal=np.asarray([[r['fx'],r['fy']] for r in rows],float)[:,None,:]
+    reference=labeled&np.isfinite(z)&(z>0)&np.isfinite(gt).all(-1)
+    predicted=np.isfinite(prediction).all(-1)
+    evaluable=reference&predicted
+    mm=np.linalg.norm((prediction-gt)/focal,axis=-1)*z*1000
+    values=mm[evaluable]
+    complete=reference.all(-1); available=predicted.all(-1)
+    mean9=mm.mean(-1)
+    denominator=int(complete.sum())
+    result=dict(points=int(evaluable.sum()),reference_points=int(reference.sum()),images=len(rows),
+        point_coverage=float(evaluable.sum()/max(1,reference.sum())),
+        complete_depth_images=denominator,predicted_complete_images=int((complete&available).sum()),
+        mean=float(values.mean()) if values.size else None,
+        median=float(np.median(values)) if values.size else None,
+        p95=float(np.percentile(values,95)) if values.size else None,
+        image_mean_below_5mm=float((complete&available&(mean9<5)).sum()/denominator) if denominator else None,
+        all_nine_below_5mm=float((complete&available&(mm<5).all(-1)).sum()/denominator) if denominator else None,
+        definition='Lateral camera displacement at labeled Z, not independent 3D pose error; depth provenance in records')
+    result['keypoints']={name:dict(points=int(evaluable[:,i].sum()),
+        mean=float(mm[:,i][evaluable[:,i]].mean()) if evaluable[:,i].any() else None,
+        p95=float(np.percentile(mm[:,i][evaluable[:,i]],95)) if evaluable[:,i].any() else None)
+        for i,name in enumerate(NAMES)}
+    return result
+
+
 def paired_rows(left, right):
     a={r['uid']:r for r in left}; b={r['uid']:r for r in right}
     if len(a)!=len(left) or len(b)!=len(right) or a.keys()!=b.keys():
@@ -51,7 +83,8 @@ def summarize(pairs):
                       candidate_median=float(np.median(mm_b)) if mm_b else None,
                       baseline_p95=float(np.percentile(mm_a,95)) if mm_a else None,
                       candidate_p95=float(np.percentile(mm_b,95)) if mm_b else None,
-                      definition='Lateral error at paired valid GT sensor Z, pinhole synthetic camera')
+                      reference_types=sorted({kind for x,y in pairs for kind in x.get('depth_reference',['sensor_at_label'])}),
+                      definition='Lateral error at paired labeled Z, pinhole camera; reference_types distinguish synthetic keypoint GT from sensor samples')
     return result
 
 
@@ -132,12 +165,68 @@ def analyze(root):
     return result
 
 
+def subgroup_intervals(root):
+    """Exploratory follow-up on the small OLD stratum; does not change priority/gates."""
+    out=root/'continuation'; result=read(out/'regression.json')
+    edge=result['scale_edges_train'][0]
+    for seed in (20261025,20261026,20261027):
+        a=read(out/'diagnostics'/f'baseline_{seed}_best.json')['records']
+        b=read(out/'diagnostics'/f'candidate_{seed}_best.json')['records']
+        pairs=[p for p in paired_rows(a,b) if p[0]['source']=='OLD' and
+               np.linalg.norm(np.array(p[0]['bbox'][2:])-p[0]['bbox'][:2])<edge]
+        result['results'][str(seed)]['OLD']['small'].update(bootstrap(pairs))
+    result['subgroup_intervals_policy']='Exploratory small-OLD follow-up, unadjusted for multiplicity; priority and locked gates unchanged'
+    result['interval_limitation']='Conditional on checkpoints selected using this validation; not independent evidence of unseen-domain generalization'
+    dump(out/'regression.json',result)
+
+
+def render_failures(root):
+    """Render paired validation failures from cached predictions, without model inference."""
+    from PIL import Image,ImageDraw
+    out=root/'continuation'; diagnosis=read(out/'regression.json')
+    manifest=read(root/'manifest50k.json'); records={r['uid']:r for r in manifest['val']}
+    destination=out/'failures'; destination.mkdir(exist_ok=True)
+    index=[]
+    for seed in (20261025,20261026,20261027):
+        baseline={r['uid']:r for r in read(out/'diagnostics'/f'baseline_{seed}_best.json')['records']}
+        candidate={r['uid']:r for r in read(out/'diagnostics'/f'candidate_{seed}_best.json')['records']}
+        for source in ('OLD','NEW'):
+            for item in diagnosis['results'][str(seed)][source]['worst_images'][:3]:
+                uid=item['uid']; record=records[uid]; a,b=baseline[uid],candidate[uid]
+                with Image.open(Path(record['root'])/'rgb'/(record['frame_id']+'.png')) as handle:
+                    image=handle.convert('RGB')
+                arrays=[np.array(a[key],float) for key in ('gt','coords')]+[np.array(b['coords'],float)]
+                points=np.concatenate(arrays)
+                left=max(0,int(np.floor(points[:,0].min()))-35)
+                top=max(0,int(np.floor(points[:,1].min()))-35)
+                right=min(image.width,int(np.ceil(points[:,0].max()))+36)
+                bottom=min(image.height,int(np.ceil(points[:,1].max()))+36)
+                if right<=left or bottom<=top: raise ValueError('Invalid failure crop')
+                canvas=image.crop((left,top,right,bottom)); draw=ImageDraw.Draw(canvas)
+                for coords,color in zip(arrays,('lime','cyan','magenta')):
+                    for i,(x,y) in enumerate(coords):
+                        if not a['valid'][i]: continue
+                        x,y=x-left,y-top
+                        draw.ellipse((x-3,y-3,x+3,y+3),outline=color,width=2)
+                        draw.text((x+4,y-6),str(i),fill=color)
+                board=Image.new('RGB',(max(520,canvas.width),canvas.height+90),'black')
+                board.paste(canvas,(0,65)); text=ImageDraw.Draw(board)
+                text.text((8,5),f'{seed} {uid}',fill='white')
+                text.text((8,22),'GT green; baseline cyan; candidate magenta; labels 0..8',fill='white')
+                text.text((8,39),f'paired mean delta {item["delta_mean"]:+.4f} original px',fill='white')
+                name=f'{seed}_{uid}.png'; board.save(destination/name)
+                index.append(dict(seed=seed,uid=uid,group=a['group'],source=source,file=name,
+                                  baseline_errors=a['errors'],candidate_errors=b['errors'],
+                                  valid=a['valid'],crop_xyxy=[left,top,right,bottom]))
+    dump(destination/'index.json',dict(validation_only=True,keypoint_names=NAMES,records=index))
+
+
 def write_report(root,state):
     """Update the canonical report; retain historical rows and release decision."""
     out=root/'continuation'; diagnosis=read(out/'regression.json') if (out/'regression.json').exists() else None
     marker='\n<!-- continuation-20261026 -->\n'
     original=(root/'REPORT.md').read_text().split(marker)[0]
-    lines=['','## Tiếp nối ngày 26/10/2026',
+    lines=['','## Tiếp nối ngày 26/10/2026','',
         f'Trạng thái: **{state["phase"]}**. Default baseline được giữ; candidate lịch sử được bảo toàn.',
         f'GPU-giờ tổng: {state["budget"]["allocated_gpu_hours"]:.4f}/288; '
         f'đợt tiếp nối: {state["continuation_budget"]["allocated_gpu_hours"]:.4f}/162.',
@@ -156,10 +245,15 @@ def write_report(root,state):
         lines+=['',f'Ưu tiên retrain theo diagnostic: **{diagnosis["training_priority"]}**.',
                 'Chi tiết paired/keypoint/scale/depth/mm và checkpoint selection: `continuation/regression.json`.',
                 'Các nhóm render chưa chứng minh độc lập theo scene vật lý; CI không giải quyết hạn chế này.']
+        lines+=['CI điều kiện trên checkpoint đã chọn bằng validation, không phải chứng cứ độc lập về unseen-domain generalization.']
+        lines+=['Candidate full-run thay cả pretrained và augmentation; paired diagnostics không đủ để gán quan hệ nhân quả riêng cho một thành phần.']
+        lines+=['','Nhóm OLD nhỏ gồm 31 ảnh: regression mean +0,212/+0,233 px ở seed 20261025/20261027, '
+                'CI bootstrap bổ sung được lưu trong `regression.json`; seed 20261026 không cho thấy cùng xu hướng. '
+                'Đây là phân tích subgroup thăm dò, không nới gate hoặc tự mở training để khớp 31 ảnh validation.']
     runtime=root/'trials/N_runtime/runtime.json'
     if runtime.exists():
         data=read(runtime); configs=data.get('configurations',[])
-        lines+=['','### Runtime trên cùng checkpoint candidate',
+        lines+=['','### Runtime trên cùng checkpoint candidate','',
                 '| Precision | Batch | Workers | File→coords ảnh/s | GPU P50 ms/batch | VRAM MiB | Parity/accuracy gate |',
                 '|---|---:|---:|---:|---:|---:|---|']
         for row in configs:
@@ -172,6 +266,40 @@ def write_report(root,state):
             lines.append(f'| {row["precision"]} | {row["batch"]} | {row["workers"]} | {throughput:.2f} | {latency:.3f} | {memory:.1f} | {row["accepted"]} |')
         lines+=['','Batch throughput và batch latency không được gọi là cải thiện latency batch-one.',
                 'Cấu hình runtime được giữ chỉ khi qua accuracy/parity gate; cần lợi ích >=5% vượt dao động đo để khuyến nghị thay đổi.']
+    efficiency=out/'training_efficiency.json'
+    confirmation=out/'runtime_confirmation.json'
+    if confirmation.exists():
+        confirmed=read(confirmation)
+        lines+=['','### Kiểm chứng runtime không giữ buffer của sweep','',
+                '| Cấu hình batch-one | File→coords P50/P95 ms | Throughput ảnh/s | GPU P50 ms | Pipeline VRAM allocated/reserved MiB |',
+                '|---|---:|---:|---:|---:|']
+        for label in ('before','reader_only','after'):
+            b=confirmed[label]
+            lines.append(f'| {label}: {b["precision"]}, workers={b["workers"]} | '
+                f'{np.median([r["batch_p50_ms"] for r in b["file_to_coordinates"]]):.3f}/'
+                f'{np.median([r["batch_p95_ms"] for r in b["file_to_coordinates"]]):.3f} | '
+                f'{np.median([r["images_per_second"] for r in b["file_to_coordinates"]]):.2f} | '
+                f'{np.median([r["batch_p50_ms"] for r in b["gpu_ready"]]):.3f} | '
+                f'{max(r["allocated_bytes"] for r in b["file_to_coordinates"])/2**20:.3f}/'
+                f'{max(r["reserved_bytes"] for r in b["file_to_coordinates"])/2**20:.3f} |')
+        lines+=['Bảng sweep ở trên bao gồm reference buffers của harness; dùng phép đo độc lập này để so VRAM triển khai.']
+        lines+=['`reader_only` dùng cùng RGB/depth/K preprocessing nhưng bỏ đọc nhãn, tạo Gaussian target và chuyển GT sang GPU; '
+                '`after` chỉ thêm prefetch lên reader đó. Không dùng nhãn GT trong đường inference tối ưu.']
+    if efficiency.exists():
+        profile=read(efficiency)
+        lines+=['','### Bỏ coordinate loss có hệ số 0','',
+            f'Thay đổi thời gian step trung vị: {100*profile["speedup_fraction"]:+.2f}%; '
+            f'max weight difference sau paired steps: {profile["max_weight_difference"]:.9g}.',
+            '**Bị loại và rollback**: lợi ích dưới 5%; benchmark không thiết lập được weight parity GPU. '
+            'Max difference được lấy trên các lượt của cả hai cách tính, không đủ để quy nguyên nhân cho shortcut.',
+            'Đây là đo compute với input đã ở GPU và effective batch 8; không phải bằng chứng thời gian hội tụ.',
+            'Chi tiết ba lượt, P50/P95, throughput và VRAM: `continuation/training_efficiency.json`.']
+    lines+=['','Tối ưu packed Local ROI chỉ qua correctness CPU, chưa có benchmark Local phù hợp nên được rollback; '
+            'không chọn Local hoặc kiến trúc mới cho default.']
+    failures=out/'failures/index.json'
+    if failures.exists():
+        lines+=['',f'Overlay paired failure cases: {len(read(failures)["records"])} ảnh validation tại `continuation/failures/`, '
+                'kèm UID/group, crop và sai số chín keypoint; dùng prediction đã lưu, không chạy lại model.']
     lines+=['','Default chưa thay đổi. Đánh giá D455 lịch sử vẫn là benchmark real-domain đã quan sát.',
             'Artifact mới có snapshot và hash riêng tại `continuation/`; source/checkpoint lịch sử không bị ghi đè.']
     (root/'REPORT.md').write_text(original+marker+'\n'.join(lines)+'\n')
@@ -180,6 +308,12 @@ def write_report(root,state):
     release.update(accepted=False,budget=state['budget'],continuation_budget=state['continuation_budget'],
         continuation_status=state['phase'],continuation_reason='Locked default gates remain required; historical test regressions not retuned',
         validation_diagnostics='continuation/regression.json')
+    runtime_recommendation=out/'recommended_runtime.json'
+    if runtime_recommendation.exists():
+        release['runtime_optimization']=read(runtime_recommendation)
+    release['rejected_optimizations']=['BF16 validation regression','Batch>1 failed locked coordinate parity',
+        'Zero-weight coordinate shortcut below 5% and GPU parity not established; rolled back',
+        'Packed Local ROI lacks appropriate runtime evidence; rolled back']
     dump(root/'release.json',release)
 
 

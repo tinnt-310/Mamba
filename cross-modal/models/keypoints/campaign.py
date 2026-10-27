@@ -111,6 +111,15 @@ def finished(root,t,budget):
     return budget.remaining_trial(t['id'],int(t['hours']*3600))<300 or len(records)>=8
 
 
+def succeeded(root,t,budget):
+    """Terminal scheduling status is distinct from a successful trial artifact."""
+    if not finished(root,t,budget): return False
+    records=[r for r in budget.records if r.trial==t['id']]
+    if records and records[-1].state!='COMPLETED': return False
+    path=root/'trials'/t['id']/'completed.json'
+    return path.exists() and read(path).get('status') in ('complete','early_stopped')
+
+
 def submit(root,t,budget,state):
     if any(r.trial==t['id'] and not r.terminal for r in budget.records): return False
     seconds=budget.remaining_trial(t['id'],int(t['hours']*3600))
@@ -185,19 +194,25 @@ def controller(root,baseline_job):
                 state['phase']='pilot'
         tasks=state['tasks']
         completed={t['id'] for t in tasks if finished(root,t,budget)}
+        successful={t['id'] for t in tasks if succeeded(root,t,budget)}
+        state['unsuccessful_trials']=sorted(set(state.get('unsuccessful_trials',[]))|(completed-successful))
         # Submit ready trials; all phases share this same four-slot ledger.
         for t in tasks:
             if t['id'] in completed or not set(t.get('requires',[]))<=completed: continue
+            if not set(t.get('requires',[]))<=successful:
+                dump(root/'trials'/t['id']/'completed.json',dict(status='skipped',reason='Required parent did not succeed'))
+                continue
             if any(not (root/'trials'/parent/'best.pt').exists() for parent in t.get('requires',[])):
                 dump(root/'trials'/t['id']/'completed.json',dict(status='skipped',reason='Required parent checkpoint missing'))
                 continue
             submit(root,t,budget,state)
         if tasks and all(t['id'] in completed for t in tasks):
             if state['phase']=='pilot':
-                base=next(t for t in tasks if t['id']=='P_base'); bm=validation(root,base)
+                base=next(t for t in tasks if t['id']=='P_base')
+                bm=validation(root,base) if base['id'] in successful else None
                 if bm is None: raise RuntimeError('Baseline pilot failed; no candidate can be selected')
                 local_values=[(t,validation(root,t)) for t in tasks if t.get('phase')=='local'
-                              and acceptable(validation(root,t),bm,True)]
+                              and t['id'] in successful and acceptable(validation(root,t),bm,True)]
                 if local_values and not state.get('joint_attempted'):
                     local_best=min(local_values,key=lambda p:p[1]['final']['balanced_mean'])[0]
                     joint=deepcopy(local_best)
@@ -206,7 +221,7 @@ def controller(root,baseline_job):
                     state['tasks'].append(joint); state['joint_attempted']=True
                     state['reservations']=budget.serialize(); dump(root/'state.json',state)
                     continue
-                scores=[(t,validation(root,t)) for t in tasks]
+                scores=[(t,validation(root,t) if t['id'] in successful else None) for t in tasks]
                 accepted=[(t,m) for t,m in scores if t['id']!='P_base' and acceptable(m,bm,t.get('phase')=='local')]
                 winner=min(accepted,key=lambda pair:(pair[1]['final']['balanced_mean'],pair[1]['final']['balanced_p95']))[0] if accepted else base
                 dump(root/'pilot_selection.json',dict(baseline=base['id'],winner=winner['id'],
@@ -229,7 +244,7 @@ def controller(root,baseline_job):
                 state['phase']='next_composition'
             elif state['phase']=='composition':
                 t=tasks[0]
-                if acceptable(validation(root,t),validation(root,state['composition_parent']),t.get('phase')=='local'):
+                if t['id'] in successful and acceptable(validation(root,t),validation(root,state['composition_parent']),t.get('phase')=='local'):
                     state['composition_parent']=t
                 state['composition_tasks'].append(t)
                 state['phase']='next_composition'
@@ -239,18 +254,21 @@ def controller(root,baseline_job):
                      policy='Frozen before synthetic test/D455; no real-driven retuning'))
                 benchmark=[]
                 for t in tasks:
-                    if (root/'trials'/t['id']/'best.pt').exists():
+                    if t['id'] in successful and (root/'trials'/t['id']/'best.pt').exists():
                         benchmark.append(dict(id='E_'+t['id'],kind='evaluate_final',checkpoint_trial=t['id'],
                               hours=4,budget_phase='final',config=t['config']))
                 if not benchmark:
                     raise RuntimeError('No final checkpoint; cannot evaluate or report an achieved improvement')
-                benchmark.append(dict(id='R_sweep',kind='runtime',hours=18,budget_phase='runtime',
-                                      checkpoint_trial='F_candidate_20261025',config=state['selection']['candidate']['config']))
+                if 'F_candidate_20261025' in successful:
+                    benchmark.append(dict(id='R_sweep',kind='runtime',hours=18,budget_phase='runtime',
+                                          checkpoint_trial='F_candidate_20261025',config=state['selection']['candidate']['config']))
                 state['tasks']=benchmark; state['phase']='evaluation'
             elif state['phase']=='evaluation':
                 from .campaign_report import report
-                report(root,budget.serialize())
-                state['phase']='complete'
+                errors=state['unsuccessful_trials']
+                state['failed_tasks']=errors
+                report(root,budget.serialize(),task_errors=errors)
+                state['phase']='completed_with_errors' if errors else 'complete'
         if state['phase']=='next_composition':
             queue=state['composition_queue']
             if queue:
@@ -280,7 +298,7 @@ def controller(root,baseline_job):
         if state['phase']=='select_final':
             base=next(t for t in state['pilot_tasks'] if t['id']=='P_base')
             winner=state['pilot_winner']; bm=validation(root,base)
-            candidates=[t for t in state.get('composition_tasks',[]) if acceptable(validation(root,t),bm)]
+            candidates=[t for t in state.get('composition_tasks',[]) if succeeded(root,t,budget) and acceptable(validation(root,t),bm)]
             if candidates:
                 all_candidates=candidates+[winner]
                 winner=min(all_candidates,key=lambda t:validation(root,t)['final']['balanced_mean'])
@@ -306,7 +324,7 @@ def controller(root,baseline_job):
         dump(root/'state.json',state)
         dump(root/'status.json',dict(phase=state['phase'],budget=budget.summary(),
              trials=[dict(id=t['id'],finished=finished(root,t,budget)) for t in state['tasks']]))
-        if state['phase']=='complete': return
+        if state['phase'] in ('complete','completed_with_errors'): return
         # Detect a stalled campaign instead of silently spinning after exhausted admission.
         if not any(not r.terminal for r in budget.records) and tasks and not all(t['id'] in completed for t in tasks):
             if all(budget.remaining_trial(t['id'],int(t['hours']*3600))<300 for t in tasks if t['id'] not in completed):

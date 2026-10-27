@@ -26,19 +26,31 @@ class StageOutput:
     local: LocalRefinementOutput | None
     final_heatmaps: torch.Tensor | None = None
     residual: object | None = None
+    coarse_heatmaps: torch.Tensor | None = None
 
 
 class MeanMultiScaleDecoder(nn.Module):
-    def __init__(self, channels, width):
+    def __init__(self, channels, width, options=None):
         super().__init__()
+        options = options or dict(merge='mean',activation='gelu',depth=2,residual=False)
+        self.merge, self.residual = options['merge'], options['residual']
         self.projections = nn.ModuleList(nn.Conv2d(c, width, 1) for c in channels)
-        self.refine = nn.Sequential(
-            nn.Conv2d(width, width, 3, padding=1, bias=False),
-            nn.GroupNorm(1, width), nn.GELU(),
-            nn.Conv2d(width, width, 3, padding=1, bias=False),
-            nn.GroupNorm(1, width), nn.GELU())
+        self.merge_projection = None
+        if self.merge == 'concat':
+            self.merge_projection = nn.Conv2d(width*len(channels),width,1,bias=False)
+            # Start with exactly the mean rule; learning may select scale/channel.
+            with torch.no_grad():
+                self.merge_projection.weight.zero_()
+                for scale in range(len(channels)):
+                    for channel in range(width):
+                        self.merge_projection.weight[channel,scale*width+channel,0,0]=1/len(channels)
+        activation = {'gelu':nn.GELU,'silu':nn.SiLU,'relu':nn.ReLU}[options['activation']]
+        layers=[]
+        for _ in range(options['depth']):
+            layers.extend((nn.Conv2d(width,width,3,padding=1,bias=False),nn.GroupNorm(1,width),activation()))
+        self.refine = nn.Sequential(*layers)
 
-    def forward(self, features, output_hw):
+    def forward(self, features, output_hw, detail=None):
         if len(features) != len(self.projections):
             raise ValueError("feature scale count differs from decoder projection count")
         resized = []
@@ -49,7 +61,12 @@ class MeanMultiScaleDecoder(nn.Module):
                 raise ValueError("decoder feature batch sizes must match")
             resized.append(F.interpolate(projection(feature), size=output_hw,
                                          mode="bilinear", align_corners=False))
-        return self.refine(torch.stack(resized, dim=0).mean(dim=0))
+        merged = (torch.stack(resized,dim=0).mean(dim=0) if self.merge_projection is None
+                  else self.merge_projection(torch.cat(resized,dim=1)))
+        if detail is not None:
+            merged=merged+F.interpolate(detail,size=output_hw,mode='bilinear',align_corners=False)
+        refined=self.refine(merged)
+        return merged+refined if self.residual else refined
 
 
 class RGBDKeypointModel(nn.Module):
@@ -62,20 +79,32 @@ class RGBDKeypointModel(nn.Module):
             config["local"] = {"enabled": False}
         self.config = make_config(config)
         selected = self.config["out_indices"]
-        detail_needed = self.config['detail_decoder'] or (
+        self.gdl_d2 = self.config['decoder']['kind']=='d2'
+        detail_needed = self.gdl_d2 or self.config['detail_decoder'] or (
             self.config['local']['mode']=='residual' and self.config['local']['feature_source']=='detail')
         self._rgb_indices = tuple(sorted(set((0,)+selected))) if detail_needed else selected
         self.rgb_encoder = SEResNetBackbone(pretrained=self.config["pretrained"],
                                             out_indices=self._rgb_indices,
                                             checkpoint_path=self.config['pretrained_path'])
         rgb_channels = tuple(self.rgb_encoder.stage_channels[self._rgb_indices.index(i)] for i in selected)
+        self._geometry_indices=tuple(sorted(set((0,)+selected))) if self.gdl_d2 else selected
         self.geometry_encoder = DepthGeometryBranch(DenseGeometryEncoder(
-            channels=self.config["geometry_channels"], out_indices=selected))
-        if tuple(self.rgb_encoder.stage_reductions[self._rgb_indices.index(i)] for i in selected) != self.geometry_encoder.stage_reductions:
+            channels=self.config["geometry_channels"], out_indices=self._geometry_indices))
+        geometry_channels=tuple(self.geometry_encoder.stage_channels[self._geometry_indices.index(i)] for i in selected)
+        if tuple(self.rgb_encoder.stage_reductions[self._rgb_indices.index(i)] for i in selected) != tuple(
+                self.geometry_encoder.stage_reductions[self._geometry_indices.index(i)] for i in selected):
             raise ValueError("RGB and geometry encoder feature grids must align")
-        self.fusion = MultiScaleRGBDCompensation(
-            rgb_channels, self.geometry_encoder.stage_channels,
-            self.config["fusion_channels"], **self.config["global_ssm"])
+        global_options=dict(self.config['global_ssm'])
+        topology=global_options.pop('topology'); window_size=global_options.pop('window_size')
+        fusion_class=MultiScaleRGBDCompensation
+        if topology!='legacy':
+            from models.fusion.gdl import SearchMultiScaleFusion
+            fusion_class=SearchMultiScaleFusion
+            global_options.update(topology=topology,window_size=window_size)
+        self.fusion = fusion_class(
+            rgb_channels, geometry_channels,
+            self.config["fusion_channels"], validity_aware=self.config['fusion_mode']=='validity',
+            **global_options)
         self.rgb_projections = None
         self.quality_blocks = None
         if self.config['modality']=='rgb' or self.config['skip_fusion_scales']:
@@ -88,7 +117,8 @@ class RGBDKeypointModel(nn.Module):
                         self.fusion.blocks[i]=nn.Identity()
         if self.config['fusion_mode']=='quality':
             from .quality_fusion import QualityFusion
-            self.quality_blocks = nn.ModuleList(QualityFusion(r,d,c,**self.config['global_ssm'])
+            legacy_options={k:v for k,v in self.config['global_ssm'].items() if k not in ('topology','window_size')}
+            self.quality_blocks = nn.ModuleList(QualityFusion(r,d,c,**legacy_options)
                 for r,d,c in zip(rgb_channels,self.geometry_encoder.stage_channels,self.config['fusion_channels']))
         # Unused legacy fusion/geometry parameters are excluded in new modalities.
         if self.config['modality']=='rgb' or self.quality_blocks is not None:
@@ -96,7 +126,15 @@ class RGBDKeypointModel(nn.Module):
         if self.config['modality']=='rgb':
             self.geometry_encoder = nn.Identity()
         self.decoder = MeanMultiScaleDecoder(self.config["fusion_channels"],
-                                             self.config["decoder_width"])
+                                             self.config["decoder_width"],self.config['decoder'])
+        if self.config['decoder']['kind']=='d1':
+            from .gdl_decoders import FPNDecoder
+            self.decoder=FPNDecoder(self.config['fusion_channels'],self.config['decoder_width'])
+        elif self.gdl_d2:
+            from .gdl_decoders import CoarseToFineDecoder
+            self.decoder=CoarseToFineDecoder(self.config['fusion_channels'],self.config['decoder_width'],
+                (self.rgb_encoder.stage_channels[self._rgb_indices.index(0)],self.config['geometry_channels'][0]),
+                self.config['num_keypoints'])
         self.head = nn.Conv2d(self.config["decoder_width"], self.config["num_keypoints"], 1)
         self.detail_projection = (nn.Conv2d(self.rgb_encoder.stage_channels[self._rgb_indices.index(0)],
                                  self.config['decoder_width'],1) if self.config['detail_decoder'] else None)
@@ -113,7 +151,7 @@ class RGBDKeypointModel(nn.Module):
                         if local['feature_source']=='detail' else self.config['fusion_channels'][0])
             self.residual_local = ResidualLocal(channels,self.config['fusion_channels'][0],
                 self.config['num_keypoints'],roi_size=local['roi_size'],conditioning=local['conditioning'],
-                state_dim=local['state_dim'],backend=local['backend'])
+                state_dim=local['state_dim'],backend=local['backend'],core=local['core'])
         self.phase = "joint" if self.local_enabled else "global"
 
     def _global_modules(self):
@@ -121,22 +159,26 @@ class RGBDKeypointModel(nn.Module):
                      self.rgb_projections,self.quality_blocks,self.detail_projection) if m is not None)
 
     def set_phase(self, phase):
-        if phase not in ("global", "local", "joint"):
+        if phase not in ("global", "local", "joint", "decoder"):
             raise ValueError("phase must be global, local or joint")
         if phase in ("local", "joint") and not self.local_enabled:
             raise ValueError("local/joint phase requires local refinement enabled")
         self.phase = phase
         for module in self._global_modules():
             module.requires_grad_(phase != "local")
+        if phase=='decoder':
+            for module in (self.rgb_encoder,self.geometry_encoder,self.fusion): module.requires_grad_(False)
         if self.local_refinement is not None:
-            self.local_refinement.requires_grad_(phase != "global")
+            self.local_refinement.requires_grad_(phase not in ("global","decoder"))
         if self.residual_local is not None:
-            self.residual_local.requires_grad_(phase != 'global')
+            self.residual_local.requires_grad_(phase not in ('global','decoder'))
         self.train(self.training)
         return self
 
     def train(self, mode=True):
         super().train(mode)
+        if self.phase=='decoder':
+            for module in (self.rgb_encoder,self.geometry_encoder,self.fusion): module.eval()
         if self.phase == "local":
             for module in self._global_modules():
                 module.eval()
@@ -162,25 +204,38 @@ class RGBDKeypointModel(nn.Module):
                 if amp:
                     rgb_features = tuple(r.float() for r in rgb_features)
                     depth, K = depth.float(), K.float()
-                geometry_features = self.geometry_encoder(depth,K)
+                all_geometry = self.geometry_encoder(depth,K)
+                geometry_features=tuple(all_geometry[self._geometry_indices.index(i)] for i in self.config['out_indices'])
+                if self.gdl_d2:
+                    detail=(detail,all_geometry[self._geometry_indices.index(0)])
                 if self.quality_blocks is not None:
                     valid = torch.isfinite(depth)&(depth>0)
                     fused = tuple(block(r,d,valid) for block,r,d in zip(self.quality_blocks,rgb_features,geometry_features))
                 else:
                     fused = tuple(self.rgb_projections[i](r) if i in self.config['skip_fusion_scales']
-                                  else block(r,d)[0] for i,(block,r,d) in enumerate(zip(self.fusion.blocks,rgb_features,geometry_features)))
+                                  else block(r,d,validity=torch.isfinite(depth)&(depth>0))[0]
+                                  for i,(block,r,d) in enumerate(zip(self.fusion.blocks,rgb_features,geometry_features)))
         return fused,detail
 
     def encode_fused(self,rgb,depth,K):
         return self._encode(rgb,depth,K)[0]
 
-    def global_from_fused(self, fused, detail=None):
-        decoded = self.decoder(fused,self.config['heatmap_size'])
+    def global_from_fused(self, fused, detail=None, *, return_coarse=False):
+        if self.gdl_d2:
+            decoded,coarse=self.decoder(fused,self.config['heatmap_size'],detail)
+            maps=self.head(decoded)
+            return (maps,coarse) if return_coarse else maps
+        projected = None
         if self.detail_projection is not None:
             if detail is None:
                 raise ValueError('Detail decoder needs the RGB stem feature')
-            decoded = decoded+F.interpolate(self.detail_projection(detail),size=decoded.shape[-2:],mode='bilinear',align_corners=False)
-        return self.head(decoded)
+            projected=self.detail_projection(detail)
+        before=self.config['decoder']['detail_position']=='before'
+        decoded = self.decoder(fused,self.config['heatmap_size'],projected if before else None)
+        if projected is not None and not before:
+            decoded=decoded+F.interpolate(projected,size=decoded.shape[-2:],mode='bilinear',align_corners=False)
+        maps=self.head(decoded)
+        return (maps,None) if return_coarse else maps
 
     def refine_cached(self, f1, global_maps, *, return_patches=False, detail=None):
         if self.residual_local is not None:
@@ -196,10 +251,12 @@ class RGBDKeypointModel(nn.Module):
 
     def forward_stages(self, rgb, depth, K, *, return_patches=False):
         fused,detail = self._encode(rgb,depth,K)
-        global_maps = self.global_from_fused(fused,detail)
-        if self.residual_local is not None and self.phase=='global':
-            return StageOutput(global_maps,None,global_maps)
-        return self.refine_cached(fused[0], global_maps, return_patches=return_patches,detail=detail)
+        global_maps,coarse = self.global_from_fused(fused,detail,return_coarse=True)
+        if self.residual_local is not None and self.phase in ('global','decoder'):
+            result=StageOutput(global_maps,None,global_maps)
+        else:
+            result=self.refine_cached(fused[0], global_maps, return_patches=return_patches,detail=detail)
+        return StageOutput(result.global_heatmaps,result.local,result.final_heatmaps,result.residual,coarse)
 
     def forward(self, rgb, depth, K):
         """Keep the global-only tensor API regardless of local configuration."""
